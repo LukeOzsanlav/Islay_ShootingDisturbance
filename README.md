@@ -1,5 +1,5 @@
 # Shooting Disturbance on Islay
-Movement and behavioural effects of shooting on Barnacle and White-fronted Geese
+Movement and behavioural effects of shooting on Barnacle Goose and White-fronted Geese
 
 ## _Authors_
 - Luke Ozsanlav-Harris
