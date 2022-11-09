@@ -1,18 +1,16 @@
-# Shooting Disturbance on Islay
-Movement and behavioural effects of shooting on Barnacle Goose and White-fronted Geese
+# Contrasting effects of shooting disturbance on the movement and behaviour of sympatric wildfowl species
+Movement and behavioral effects of shooting on Barnacle Goose and White-fronted Geese on Islay, Scotland. 
 
 ## _Authors_
 - Luke Ozsanlav-Harris
 - Aimee Mcintosh
 
 ## Code description
-- `R code/1_Combine tracking data + label with landcover.R`
-- `R code/2.1_Shooting proximity effects on speed.R`: **NOT PART OF MAIN ANLAYSIS**
-- `R code/2.2_Shooting proximity effects on Distance travelled.R`
-- `R code/3_Hourly behaviour pre and post shooting.R`**NOT PART OF MAIN ANLAYSIS**
-- `R code/4_Daily behaviour on shooting vs non-shooting days.R`
-- `R code/5_Daily ODBA on shooting vs non-shooting days.R`
-- `R code/Useful Functions` folder containing useful code for this project, it is not used in the main workflow
+- `R code/1_Combine tracking data + label with landcover.R`: Prepare GWfG tracking data for analysis
+- `R code/2_Shooting proximity effects on Distance travelled.R`: Models to determine the immediate movement impact of shooting
+- `R code/4_Daily behaviour on shooting vs non-shooting days.R`: Models to determine the behavioral changes in response to shooting in GWfG
+- `R code/5_Daily ODBA on shooting vs non-shooting days.R`; Models to determine the change in daily ODBA due to shooting
+- `R code/Useful Functions` folder containing useful code for this project, it is not used in the main work flow
 
 ## Data description
 - `Landcover Data/Islay landcover data`: habitat data from Islay from the years 2015, 2017, 2018, 2019 amd 2020 as rasters. This was cropped from larger UK raster using `1_Crop RAW landcover data.R`
