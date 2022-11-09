@@ -86,7 +86,7 @@ Add_data <- fread("MetaData/Tagged bird summary data new.csv")
 Add_data <- Add_data %>% 
             mutate(S.N= as.character(Add_data$S.N),
                    S.N= ifelse(is.na(S.N)==T, Bird.ID, S.N)) %>% 
-            select(S.N, Sex)
+            dplyr::select(S.N, Sex)
 
 ## Join sexes to data set
 ind4 <- duplicated(Add_data)
@@ -201,7 +201,7 @@ GBG_ODBA <- sf_to_df(Islay_GBG_sf, fill = T)
 ## subset the GWfG data
 winter_GWfG3 <- winter_GWfG3 %>% 
                 mutate(ODBA_quant = ifelse(is.na(ODBA_quant) == T, ODBA, ODBA_quant)) %>% 
-                select(device_id, UTC_datetime, Sex, ODBA_quant, year_day) %>% 
+                dplyr::select(device_id, UTC_datetime, Sex, ODBA_quant, year_day) %>% 
                 rename(ODBA= ODBA_quant)
 
 ## subset GBG data set
@@ -213,10 +213,10 @@ GBG_ODBA$Sex <- ifelse(GBG_ODBA$Sex == "MALE", "M", "F")
 
 ## set species column
 GBG_ODBA$Species <- "GBG"
-winter_GWfG4$Species <- "GWfG"
+winter_GWfG3$Species <- "GWfG"
 
 ## bind the two together
-All_winter_ODBA <- plyr::rbind.fill(winter_GWfG4, GBG_ODBA)
+All_winter_ODBA <- plyr::rbind.fill(winter_GWfG3, GBG_ODBA)
 table(All_winter_ODBA$device_id); unique(All_winter_ODBA$Sex)
 
 
@@ -346,10 +346,10 @@ Shoot_proximity <- function(TD = TD, SD = SD, time_tresh = time_tresh, dist_thre
   Prox_list <- vector(mode = "list", length = nrid)
   
   ## Loop through each tag
-  for (i in 1:nrid) { ## ** CHANGE 15 BACK TO nrid **###
+  for (i in 1:nrid) {
     
-    message("Tag ", i, " out of ", nrid)
-    
+    ## progress indicator for the loop
+    svMisc::progress(value = i, max.value = nrid)
     
     ## DATA PREP ##
     ## filter out each tag one at a time
@@ -449,7 +449,7 @@ DistSum <- All_prox %>%
 #---------------------------------------# 
 
 ## First label times as either day or night
-## "sunrise" and "sunset" gave short days, i.e. the geese wouls still be out on daytime feeding sites
+## "sunrise" and "sunset" gave short days, i.e. the geese would still be out on daytime feeding sites
 ## Either use  "dusk", "dawn" or "nauticalDusk", "nauticalDawn" (nautical versions give the longer day length)
 sun_dates <- seq.Date(as.Date(min(All_winter_ODBA$UTC_datetime)), as.Date(max(All_winter_ODBA$UTC_datetime)), by = 1)
 sunt <-
@@ -465,7 +465,7 @@ sunt <-
 ## Add a column for the date
 All_winter_ODBA$date <- as.Date(All_winter_ODBA$UTC_datetime)
 
-## Now join on the sunet and sunrise times
+## Now join on the susnet and sunrise times
 sunt$lat <- NULL
 sunt$lon <- NULL
 All_winter_ODBA2 <- left_join(All_winter_ODBA, sunt,  by = "date")
@@ -490,12 +490,9 @@ ODBASum <- All_winter_ODBA2 %>%
 
 
 
-
-
-
-#---------------------------------------------------------# 
-#### 9. Add on number of shooing events to the dataset ####
-#---------------------------------------------------------# 
+#-------------------------------------------------------# 
+#### 9. Add on number of shooting events to the data ####
+#-------------------------------------------------------# 
 
 ## join number of shots and daily behavioral summary
 setnames(ODBASum, old = "device_id", new = "Tag_ID")
@@ -530,14 +527,9 @@ ODBASum2$tag_winter <- paste0(ODBASum2$Tag_ID, "_", ODBASum2$winter) # tag winte
 ODBASum2$prev_shot <- ifelse(lag(ODBASum2$shot, n = 2L) == "Shot", "Prev_shot", "Not")
 ODBASum2$prev_shot <- ifelse(is.na(ODBASum2$prev_shot)==T, "Not", ODBASum2$prev_shot)
 
-
 ## set variables as correct class
-ODBASum2$year <- as.factor(ODBASum2$year)
+ODBASum2 <- ODBASum2 %>% ungroup() %>%  mutate(across(c(year, DayNight, Tag_ID, shot, from_nov1), as.factor))
 ODBASum2$from_nov1 <- as.numeric(ODBASum2$from_nov1)
-ODBASum2$DayNight <- as.factor(ODBASum2$DayNight)
-ODBASum2$Tag_ID <- as.factor(ODBASum2$Tag_ID)
-ODBASum2$shot <- as.factor(ODBASum2$shot)
-ODBASum2$from_nov1Factor <- as.factor(ODBASum2$from_nov1)
 
 ## Create another column for the inverse of the varience and standard errors
 ODBASum2$InVar_ODBA <- 1/ODBASum2$Var_ODBA
@@ -581,148 +573,76 @@ hist(sqrt(ODBASum2$Avg_ODBA))
 ## remove data points based on whether they had a certain number of data points per day
 ODBASum3 <- filter(ODBASum2, n_readings >= 6)
 
+## now filter out instances where an individual has 5 or less day/night worth of data
+ID_sum <- table(ODBASum3$tag_winter) %>% data.frame()
+ID_sum <- filter(ID_sum, Freq > 10)
 
-## summarize number of data point for each tag winter for day and night
-ODBASum3$dummy <- 1
-ID_sum <- ODBASum3 %>% 
-          group_by(Tag_ID, winter, DayNight) %>% 
-          summarise(n_days = sum(dummy))
-
-## now filter out instances with 5 or less days
-ID_sum <- filter(ID_sum, n_days > 5)
-ID_sum$n_days <- NULL
 
 ## Use inner join to remove the tag winters with 5 or less days
-ODBASum4 <- inner_join(ODBASum3, ID_sum, by = c("Tag_ID", "winter", "DayNight"))
+ODBASum4 <- filter(ODBASum3, tag_winter %in% ID_sum$Var1)
 
 ## create summary to see how much data I have
 datasize <- ODBASum4 %>% group_by(Species, DayNight, n_shot) %>% summarise(samp = n())
 datasize
 
-## NOTE** The sample sizes for nights are really small so we might have to get rid of that part of the analysis
-
-
-
-#--------------------------#
-#### 10.4 Run the model ####
-#--------------------------#
-
-## create a bunch of sub data sets to play with
-ODBASumDay <- filter(ODBASum4, DayNight == "day")
-ODBASumGWfG <- filter(ODBASum4, Species == "GWfG")
-ODBASumGBG <- filter(ODBASum4, Species == "GBG")
-ODBASumGWfGDay <- filter(ODBASum4, Species == "GWfG" & DayNight == "day")
-ODBASumGBGDay <- filter(ODBASum4, Species == "GWfG" & DayNight == "day")
-
-
-
-mod1 <- glmmTMB(formula = Avg_ODBA ~ shot*DayNight + Sex + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
-                data = ODBASumGBG,
-                family = Gamma(link = "log"),
-                weights = n_readings,
-                control=glmmTMBControl(optimizer=optim,
-                                       optArgs=list(method="BFGS")))
-
-
-summary(mod1)
-#drop1(mod1, test = "Chi")
-
-qqnorm(residuals(mod1))
-
-## Check model performance and assumptions
-# model_performance(mod1)
-# check_model(mod1)
-
-
-## Model checks with DHARMa
-
-##---- use DHARMa to get QQ plot and resids vs fitted ----##
-Resids_Walk <- simulateResiduals(mod1)
-plot(Resids_Walk)
-
-## plot reiduals vs predicted values
-par(mfrow=c(1,3))
-plotResiduals(Resids_Walk[["scaledResiduals"]], form = BehSum2$DayNight)
-plotResiduals(Resids_Walk[["scaledResiduals"]], form = BehSum2$shot)
-plotResiduals(Resids_Walk[["scaledResiduals"]], form = BehSum2$from_nov1)
-
-## Check dispersion
-testDispersion(Resids_Walk)
-testZeroInflation(Resids_Walk)
-
-## check autocorrelation
-New_resids <- recalculateResiduals(Resids_Walk, group = BehSum2$from_nov1)
-testTemporalAutocorrelation(Resids_Walk, time = unique(BehSum2$from_nov1))
-
-
-## create all candidate models using dredge (trace shows progress bar)
-dredge_set <- MuMIn::dredge(Walk_mod, trace = 2)
-nested_set <- subset(dredge_set, !MuMIn::nested(.), recalc.weights=T)
-delta6_set <- subset(nested_set, delta<=6, recalc.weights=T)
-
-
-## plot the model effects
-top_mod_effects <- predictorEffects(mod1)
-plot(top_mod_effects)
+## Low samples size of shooting disturbed at night for GBG, so filtering out night for both species
+ODBASum4 <- filter(ODBASum4, DayNight == "day")
 
 
 
 
 #--------------------------------------------------------------#
-#### 10.5 Test multiple models with different terms in them ####
+#### 10.4 Test multiple models with different terms in them ####
 #--------------------------------------------------------------#
 
-## I think that this is the model that I want to run, just won't converge in the current state, probably over parameterised.
-## Use ODBA sum and have number of readings as a predictor
-#+ shot*DayNight*Species + Sex + winter + poly(from_nov1, 2)
-Mod_No2 <-  glmmTMB(formula = Avg_ODBA ~ shot*Species*DayNight + Sex + winter + poly(from_nov1,2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
+## Start with the interaction term but then gradually drop the terms and see which has the lowest AIC
+## 
+Mod_Int <-  glmmTMB(formula = Sum_ODBA ~ n_readings + shot*Species + Sex + winter + poly(from_nov1,2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                    data = ODBASum4,
                    family = Gamma(link = "log"),
-                   weights = n_readings,
                    REML = FALSE,
                    control=glmmTMBControl(optimizer=optim,
                                           optArgs=list(method="BFGS")))
 
-Mod_No2Int <-  glmmTMB(formula = Avg_ODBA ~ shot*DayNight + shot*Species + DayNight*Species + Sex + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
+Mod_NoInt <-  glmmTMB(formula = Sum_ODBA ~ n_readings + shot + Species + Sex + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                    data = ODBASum4,
                    family = Gamma(link = "log"),
-                   weights = n_readings,
                    REML = FALSE,
                    control=glmmTMBControl(optimizer=optim,
                                           optArgs=list(method="BFGS")))
 
-Mod_No1IntDay <-  glmmTMB(formula = Avg_ODBA ~ shot*DayNight + DayNight*Species + Sex + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
+Mod_Species <-  glmmTMB(formula = Sum_ODBA ~ n_readings + Species + Sex + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                    data = ODBASum4,
                    family = Gamma(link = "log"),
-                   weights = n_readings,
                    REML = FALSE,
                    control=glmmTMBControl(optimizer=optim,
                                           optArgs=list(method="BFGS")))
 
-Mod_No1IntSpec <-  glmmTMB(formula = Avg_ODBA ~ shot*Species + DayNight*Species + Sex + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
+Mod_Shot <-  glmmTMB(formula = Sum_ODBA ~ n_readings + shot + Sex + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                       data = ODBASum4,
                       family = Gamma(link = "log"),
-                      weights = n_readings,
+  
                       REML = FALSE,
                       control=glmmTMBControl(optimizer=optim,
                                              optArgs=list(method="BFGS")))
 
-Mod_NoShot <-  glmmTMB(formula = Avg_ODBA ~ DayNight*Species + Sex + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
+Mod_None <-  glmmTMB(formula = Sum_ODBA ~ n_readings + Sex + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                    data = ODBASum4,
                    family = Gamma(link = "log"),
-                   weights = n_readings,
                    REML = FALSE,
                    control=glmmTMBControl(optimizer=optim,
                                           optArgs=list(method="BFGS")))
 
-AIC(Mod_No2, Mod_No2Int, Mod_No1IntDay, Mod_No1IntSpec, Mod_NoShot)
+## compare models with AIC
+AIC(Mod_Int, Mod_NoInt, Mod_Species, Mod_Shot, Mod_None)
 
 ## Now get the estimates from the main mode
-summary(Mod_No2) # quick summary
-MuMIn::r.squaredGLMM(Mod_No2)
+summary(Mod_NoInt) # quick summary
+MuMIn::r.squaredGLMM(Mod_None)
+confint(Mod_Int)
 
 ## model checks
-ResidsMod_ReadingsWeight <- simulateResiduals(Mod_ReadingsWeight)
+ResidsMod_ReadingsWeight <- simulateResiduals(Mod_Int)
 plot(ResidsMod_ReadingsWeight)
 par(mfrow=c(1,3))
 plotResiduals(ResidsMod_ReadingsWeight[["scaledResiduals"]], form = ODBASum4$DayNight)
@@ -732,62 +652,58 @@ plotResiduals(ResidsMod_ReadingsWeight[["scaledResiduals"]], form = ODBASum4$fro
 
 ## the below computes all of the pairwise comparisons
 ## and then calculates the confidence intervals for these
-## not sure this is the right way of dong this.....
-## When i try and bactransform some of these parameter estimates the dont seem right... maybe they have already been backtransformed...
-
-## create all the pairwise comparisons within the three way interaction
-grid1 <- emmeans(Mod_No2, ~shot*DayNight*Species)
+## not sure this is the right way of doing this.....
+## create all the pairwise comparisons within the two way interaction
+grid1 <- emmeans(Mod_Int, ~shot*Species)
 PairComp <- as.data.frame(pairs(grid1))
 
 ## Now estimate the CIs for each of the estimates
 PairComp$lowCI <- PairComp$estimate - (1.96*PairComp$SE)
 PairComp$highCI <- PairComp$estimate + (1.96*PairComp$SE)
 
-## Calculate the backtransformed estimates as they are on the log scale
-grid2 <- emmeans(Mod_No2, ~shot*DayNight*Species, type = "response")
-0.443-0.323 # these are from grid 2 and the estiamte for GBG at night
-
 
 
 
 #------------------------------------------------#
-#### 10.6 Plot the output from the best model ####
+#### 10.5 Plot the output from the best model ####
 #------------------------------------------------#
 
 ## use the effects package, and ggplot to plot the model predictions
 ## first the effects for each predicitor
-top_mod_effects <- predictorEffects(Mod_No2)
+top_mod_effects <- predictorEffects(Mod_Int)
 plot(top_mod_effects)
 
 ## now extract the fits for the first variable and bind them together
 effects3 <- top_mod_effects["shot"]
 fit3 <- as.data.frame(cbind(as.numeric(effects3[["shot"]][["fit"]]), as.numeric(effects3[["shot"]][["lower"]]), 
                             as.numeric(effects3[["shot"]][["upper"]]), as.character(effects3[["shot"]][["x"]][["shot"]]),
-                            as.character(effects3[["shot"]][["x"]][["DayNight"]]), as.character(effects3[["shot"]][["x"]][["Species"]])))
+                            as.character(effects3[["shot"]][["x"]][["Species"]])))
 ## change the names to something meaningful
-setnames(fit3, old = c("V1", "V2", "V3", "V4", "V5", "V6"), new = c("fit", "lower", "upper", "Shot", "Day_Night", "Species"))
+setnames(fit3, old = c("V1", "V2", "V3", "V4", "V5"), new = c("fit", "lower", "upper", "shot", "Species"))
 ## transform variables back to proportion scale
 fit3$fit <- exp(as.numeric(as.character(fit3$fit)))
 fit3$lower <- exp(as.numeric(as.character(fit3$lower)))
 fit3$upper <- exp(as.numeric(as.character(fit3$upper)))
 
 ## Change the names of some of the variables for plotting
-fit3$Day_Night <- ifelse(fit3$Day_Night == "day", "Day", "Night")
-fit3$Shot <- ifelse(fit3$Shot == "Shot", "Shooting", "No Shooting")
+fit3$shot <- ifelse(fit3$shot == "Shot", "Shooting", "No Shooting")
+ODBASum5 <- ODBASum4
+ODBASum5$shot <- ifelse(ODBASum5$shot == "Shot", "Shooting", "No Shooting")
 
 ## Now plot using ggplot
 ggplot() + 
-  geom_errorbar(data = fit3, aes(x= Shot, ymin = lower, ymax = upper, colour = Day_Night), width = 0.4, size = 0.8) +
-  geom_point(data=fit3, aes(x= Shot, y = fit, colour = Day_Night), size = 1.5)  +
+  geom_errorbar(data = fit3, aes(x= shot, ymin = lower, ymax = upper, colour = Species), width = 0.4, size = 0.8) +
+  geom_point(data=fit3, aes(x= shot, y = fit, colour = Species), size = 2, shape = 15)  +
+  #geom_point(data = ODBASum5, aes(x =shot, y= Sum_ODBA, colour = Species), size = 0.75, alpha = 0.1) +
   xlab("Shooting Exposure") + ylab("Average daily ODBA") +
   theme_bw() +
   facet_wrap(~Species)+
-  scale_colour_manual(values=c("#cc0000", "#000000")) +
-  labs(colour="Time of Day") +
+  scale_colour_manual(values=c("#0072B2", "#D55E00")) +
+  labs(colour="Species") +
   theme(panel.grid.minor.y = element_blank(),
         axis.title=element_text(size=12,), 
         panel.grid.minor.x = element_blank(), 
-        #legend.position = "none",
+        legend.position = "none",
         panel.grid.major.x = element_blank(), 
         axis.text = element_text(size =14), 
         axis.title.x = element_text(size =18),
@@ -798,5 +714,5 @@ ggplot() +
 
 ## Save a plot
 ggsave("Plots/Script 5) plots/Average daily ODBA by species.png", 
-       width = 22, height = 22, units = "cm")
+       width = 18, height = 20, units = "cm")
 
