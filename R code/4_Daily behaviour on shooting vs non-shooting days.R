@@ -620,6 +620,8 @@ ggplot() +
 
 ## compare three models
 hist(sqrt(BehSum2$Flight))
+BehSum3$DayNight <- relevel(BehSum3$DayNight, "day")
+
 Flight_modInt <- glmmTMB(formula = cbind(Flight, Not_Flight) ~ shot*DayNight + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                     data = BehSum3,
                     family = betabinomial)
@@ -631,8 +633,9 @@ Flight_modNo <- glmmTMB(formula = cbind(Flight, Not_Flight) ~ DayNight + winter 
                          family = betabinomial)
 
 AIC(Flight_modInt, Flight_modFix, Flight_modNo)
-summary(Flight_modNo)
+summary(Flight_modInt)
 drop1(Flight_modNo, test = "Chi")
+confint(Flight_modInt)
 
 ## Check model performance and assumptions
 #model_performance(Flight_mod)
@@ -669,14 +672,15 @@ delta6_set <- subset(nested_set, delta<=6, recalc.weights=T)
 
 ## use the effects package, and ggplot to plot the model predictions
 ## first the effects for each predicitor
-top_mod_effectsF <- predictorEffects(Flight_mod)
+top_mod_effectsF <- predictorEffects(Flight_modInt)
 plot(top_mod_effectsF)
 ## now extract the fits for the first variable and bind them together
 effects2 <- top_mod_effectsF["shot"]
 fit2 <- as.data.frame(cbind(effects2[["shot"]][["fit"]], effects2[["shot"]][["lower"]], 
-                            effects2[["shot"]][["upper"]], effects2[["shot"]][["x"]][["shot"]]))
+                            effects2[["shot"]][["upper"]], effects2[["shot"]][["x"]][["shot"]],
+                            effects2[["shot"]][["x"]][["DayNight"]]))
 ## change the names to something meaningful
-setnames(fit2, old = c("V1", "V2", "V3", "V4"), new = c("fit", "lower", "upper", "level"))
+setnames(fit2, old = c("V1", "V2", "V3", "V4", "V5"), new = c("fit", "lower", "upper", "shotlevel", "Daylevel"))
 ## transform variables back to proportion scale
 fit2$fit <- boot::inv.logit(fit2$fit)
 fit2$lower <- boot::inv.logit(fit2$lower)
@@ -725,7 +729,7 @@ ggplot() +
 ## When day was classified in between sunrise and sunset the was significantly less feeding at night following shooting in the day, with no effect on day time feeding
 
 hist(sqrt(BehSum2$Graze))
-BehSum2F$DayNight <- relevel(BehSum2F$DayNight, "night")
+BehSum3$DayNight <- relevel(BehSum3$DayNight, "night")
 Graze_modInt <- glmmTMB(formula = cbind(Graze, Not_Graze) ~ shot*DayNight + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                       data = BehSum3,
                       family = betabinomial)
@@ -738,9 +742,9 @@ Graze_modNo <- glmmTMB(formula = cbind(Graze, Not_Graze) ~ DayNight + winter + p
 
 AIC(Graze_modInt, Graze_modFix, Graze_modNo)
 summary(Graze_modInt)
-drop1(Graze_modFix, test = "Chi")
+drop1(Graze_modInt, test = "Chi")
 confint(Graze_modInt)
-MuMIn::r.squaredGLMM(Graze_modFix)
+MuMIn::r.squaredGLMM(Graze_modInt)
 
 ## Check model performance and assumptions
 #model_performance(Graze_mod)
@@ -775,14 +779,16 @@ plot(top_mod_effectsg)
 ## now extract the fits for the first variable and bind them together
 effects3 <- top_mod_effectsg["shot"]
 fit3 <- as.data.frame(cbind(effects3[["shot"]][["fit"]], effects3[["shot"]][["lower"]], 
-                            effects3[["shot"]][["upper"]], effects3[["shot"]][["x"]][["shot"]]))
+                            effects3[["shot"]][["upper"]], effects3[["shot"]][["x"]][["shot"]],
+                            effects3[["shot"]][["x"]][["DayNight"]]))
 ## change the names to something meaningful
-setnames(fit3, old = c("V1", "V2", "V3", "V4"), new = c("fit", "lower", "upper", "level"))
+setnames(fit3, old = c("V1", "V2", "V3", "V4", "V5"), new = c("fit", "lower", "upper", "shotlevel", "Daylevel"))
 ## transform variables back to proportion scale
 fit3$fit <- boot::inv.logit(fit3$fit)
 fit3$lower <- boot::inv.logit(fit3$lower)
 fit3$upper <- boot::inv.logit(fit3$upper)
-fit3$level <- c("No Shooting", "Shooting")
+fit3$Shooting <- c("No Shooting", "Shooting", "No Shooting", "Shooting")
+fit3$Time_of_Day <- c("Day", "Day", "Night", "Night")
 
 
 ## Now plot using ggplot
