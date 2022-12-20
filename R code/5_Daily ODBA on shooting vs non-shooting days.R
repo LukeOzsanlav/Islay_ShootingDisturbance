@@ -418,7 +418,7 @@ Shoot_proximity <- function(TD = TD, SD = SD, time_tresh = time_tresh, dist_thre
 ## run the function
 ## Used 2000m as the distance threshold, they ony tested up to c1,500m in the Islay study and at this distance the effect became small
 ## Added c500m on to allow a bit of wiggle room
-system.time(Prox_list <- Shoot_proximity(TD = winter_gps, SD = winter_shots_cent2, time_tresh = 60, dist_thresh = 626, field_crs = Field_centres))
+system.time(Prox_list <- Shoot_proximity(TD = winter_gps, SD = winter_shots_cent2, time_tresh = 60, dist_thresh = 797, field_crs = Field_centres))
 
 ## bind the lists together into one data frame
 All_prox <- plyr::ldply(Prox_list)
@@ -521,6 +521,7 @@ ODBASum2$year_day <- yday(ODBASum2$date)
 ODBASum2$from_nov1 <- ifelse(ODBASum2$year_day > 250, 
                             ODBASum2$year_day - 305, 
                             ODBASum2$year_day + 60) # day since November 1st
+ODBASum2$from_nov1Factor <- as.factor(ODBASum2$from_nov1)
 ODBASum2$shot <- ifelse(ODBASum2$n_shot >  0, "Shot", "Not_Shot") # whether there was shooting or not
 ODBASum2$winter <- ifelse(ODBASum2$year_day < 150, paste0((ODBASum2$year-1), "-", ODBASum2$year), paste0(ODBASum2$year, "-", (ODBASum2$year+1)))
 ODBASum2$tag_winter <- paste0(ODBASum2$Tag_ID, "_", ODBASum2$winter) # tag winter identifier
@@ -713,6 +714,6 @@ ggplot() +
         legend.text = element_text(size =14))
 
 ## Save a plot
-ggsave("Plots/Script 5) plots/Average daily ODBA by species.png", 
-       width = 18, height = 20, units = "cm")
+# ggsave("Plots/Script 5) plots/Average daily ODBA by species.png", 
+#        width = 18, height = 20, units = "cm")
 

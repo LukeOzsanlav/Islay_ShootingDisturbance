@@ -278,7 +278,7 @@ Shoot_proximity <- function(TD = TD, SD = SD, time_tresh = time_tresh, dist_thre
 ## run the function
 ## Used 2000m as the distance threshold, they ony tested up to c1,500m in the Islay study and at this distance the effect became small
 ## Added c500m on to allow a bit of wiggle room
-system.time(Prox_list <- Shoot_proximity(TD = GPS_set, SD = winter_shots_cent2, time_tresh = 60, dist_thresh = 626, field_crs = Field_centres))
+system.time(Prox_list <- Shoot_proximity(TD = GPS_set, SD = winter_shots_cent2, time_tresh = 60, dist_thresh = 797, field_crs = Field_centres))
 
 ## bind the lists together into one data frame
 All_prox <- plyr::ldply(Prox_list)
@@ -424,7 +424,7 @@ BehSum3 <- filter(BehSum2, DayNight == "day")
 ##
 
 ## remove data points based on whether they had a certain number of data points per day
-BehSum2 <- filter(BehSum2, Total >= 10)
+BehSum2 <- filter(BehSum2, Total >= 6) ##**CHANGED THIS FROM 10 TO 6 (12/12/22). Now aligned with the daily ODBA models
 
 
 ## summarize number of data point for each tag winter for day and night
@@ -531,7 +531,7 @@ Stat_modNo <- glmmTMB(formula = cbind(Stat, Not_Stat) ~ DayNight + winter + poly
 
 
 AIC(Stat_modInt, Stat_modfix, Stat_modNo)
-summary(Stat_mod)
+summary(Stat_modNo)
 drop1(Stat_mod, test = "Chi")
 emmeans::emmeans(Stat_mod, ~shot*DayNight, type = "response")
 confint(Stat_mod)
@@ -606,8 +606,8 @@ ggplot() +
 
 
 ## Save a plot
-ggsave("Plots/Script 4) plots/Proportion_Stationary.png", 
-       width = 19, height = 22, units = "cm")
+# ggsave("Plots/Script 4) plots/Proportion_Stationary.png", 
+#        width = 19, height = 22, units = "cm")
 
 
 
@@ -629,10 +629,10 @@ Flight_modFix <- glmmTMB(formula = cbind(Flight, Not_Flight) ~ shot + DayNight +
 Flight_modNo <- glmmTMB(formula = cbind(Flight, Not_Flight) ~ DayNight + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                          data = BehSum3,
                          family = betabinomial)
-AIC(Flight_modInt, Flight_modFix, Flight_modNo)
 
-summary(Flight_mod)
-drop1(Flight_mod, test = "Chi")
+AIC(Flight_modInt, Flight_modFix, Flight_modNo)
+summary(Flight_modNo)
+drop1(Flight_modNo, test = "Chi")
 
 ## Check model performance and assumptions
 #model_performance(Flight_mod)
@@ -704,8 +704,8 @@ ggplot() +
 
 
 ## Save a plot
-ggsave("Plots/Script 4) plots/Proportion_Flight.png", 
-       width = 19, height = 22, units = "cm")
+# ggsave("Plots/Script 4) plots/Proportion_Flight.png", 
+#        width = 19, height = 22, units = "cm")
 
 
 
@@ -737,9 +737,9 @@ Graze_modNo <- glmmTMB(formula = cbind(Graze, Not_Graze) ~ DayNight + winter + p
                      family = betabinomial)
 
 AIC(Graze_modInt, Graze_modFix, Graze_modNo)
-summary(Graze_modFix)
+summary(Graze_modInt)
 drop1(Graze_modFix, test = "Chi")
-confint(Graze_modFix)
+confint(Graze_modInt)
 MuMIn::r.squaredGLMM(Graze_modFix)
 
 ## Check model performance and assumptions
@@ -782,16 +782,16 @@ setnames(fit3, old = c("V1", "V2", "V3", "V4"), new = c("fit", "lower", "upper",
 fit3$fit <- boot::inv.logit(fit3$fit)
 fit3$lower <- boot::inv.logit(fit3$lower)
 fit3$upper <- boot::inv.logit(fit3$upper)
-fit3$Shooting <- c("No Shooting", "Shooting", "No Shooting", "Shooting")
-fit3$Time_of_Day <- c("Day", "Day", "Night", "Night")
+fit3$level <- c("No Shooting", "Shooting")
+
 
 ## Now plot using ggplot
 ggplot() + 
-  geom_errorbar(data = fit3, aes(x= Shooting, ymin = lower, ymax = upper, colour = Time_of_Day), width = 0.4, size = 0.8) +
-  geom_point(data=fit3, aes(x= Shooting, y = fit, colour = Time_of_Day), size = 1.5)  +
+  geom_errorbar(data = fit3, aes(x= level, ymin = lower, ymax = upper), width = 0.4, size = 0.8) +
+  geom_point(data=fit3, aes(x= level, y = fit), size = 1.5)  +
   xlab("Shooting Exposure") + ylab("Proportion of bursts Grazing") +
   theme_bw() +
-  scale_colour_manual(values=c("#000000", "#cc0000")) +
+  #scale_colour_manual(values=c("#000000", "#cc0000")) +
   labs(colour="Time of Day") +
   theme(panel.grid.minor.y = element_blank(),
         axis.title=element_text(size=12,), 
@@ -804,8 +804,8 @@ ggplot() +
         strip.text.x = element_text(size =12))
 
 ## Save a plot
-ggsave("Plots/Script 4) plots/Proportion_Grazing.png", 
-       width = 19, height = 22, units = "cm")
+# ggsave("Plots/Script 4) plots/Proportion_Grazing.png", 
+#        width = 19, height = 22, units = "cm")
 
 
 ##
@@ -852,8 +852,8 @@ ggplot() +
         strip.text.x = element_text(size =12))
 
 ## Save a plot
-ggsave("Plots/Script 4) plots/Proportion_Grazing_NoInteraction.png", 
-       width = 19, height = 22, units = "cm")
+# ggsave("Plots/Script 4) plots/Proportion_Grazing_NoInteraction.png", 
+#        width = 19, height = 22, units = "cm")
 
 
 
@@ -890,6 +890,6 @@ ggplot() +
         strip.text.x = element_text(size =12))
 
 ## Save a plot
-ggsave("Plots/Script 4) plots/Proportion_Allbehaviours.png", 
-       width = 24, height = 22, units = "cm")
+# ggsave("Plots/Script 4) plots/Proportion_Allbehaviours.png", 
+#        width = 24, height = 22, units = "cm")
 

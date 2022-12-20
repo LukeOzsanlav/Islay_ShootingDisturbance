@@ -71,7 +71,7 @@ eco_gps <- filter(eco_data, is.na(Acc_Z) ==T)
 rm(eco_data)
 
 ## parse timestamp
-eco_gps$UTC_datetime <- as.character(ymd_hms(eco_gps$Date_Time_milli_posix))
+eco_gps$UTC_datetime <- as.character(ymd_hms(eco_gps$UTC_datetime))
 
 ## Delete observations where missing lat or long or a timestamp. 
 colnames(eco_gps)
@@ -1023,12 +1023,15 @@ GWfG_pairs <- dplyr::filter(Consec_pair, species == "GWfG")
 #### GBG threshold model
 ##
 
+## re-assign as factor for random intercept fitting
+GBG_pairs$Tag_ID <- as.factor(as.character(GBG_pairs$Tag_ID))
+
 ## loop through each threshold value individual and save model AICc in ouput data set
 for(i in 2:length(dist_seq)) {
   
   svMisc::progress(i, max.value = length(dist_seq))
   
-  model <- lmer(Dist_difm ~ threshold1(min_shot_dist, dist_seq[i]) + winter + TOD_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
+  model <- lmer(Dist_difm ~ threshold1(min_shot_dist, dist_seq[i]) + winter + poly(TOD_sc,2) + (1|Shoot_ID1) + (1|Tag_ID), 
                 data= GBG_pairs,
                 REML=FALSE)
   
@@ -1051,7 +1054,7 @@ dist_seq[which.min(outputGBG$AIC)] # threshold point in meters
 
 
 #### Plot output of the top threshold model
-top.modelGBG <- lmerTest::lmer(Dist_difm ~ threshold1(min_shot_dist, 1000) + winter + TOD_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
+top.modelGBG <- lmerTest::lmer(Dist_difm ~ threshold1(min_shot_dist, 1000) + + winter + poly(TOD_sc,2) + (1|Shoot_ID1) + (1|Tag_ID), 
                   data=GBG_pairs,
                   REML=FALSE)
 summary(top.modelGBG)
@@ -1075,16 +1078,22 @@ fitGBG$Species <- "Barnacle"
 #### GWfG threshold model
 ##
 
-GWFGmean <- mean(GWfG_pairs$min_shot_dist)
-GWfGSd <- sd(GWfG_pairs$min_shot_dist)
-GWfG_pairs$min_shot_dist_scale <- (GWfG_pairs$min_shot_dist-GWFGmean)/GWfGSd
+## re-assign as factor for random intercept fitting
+GWfG_pairs$Tag_ID <- as.factor(as.character(GWfG_pairs$Tag_ID))
+
+## remove one big value, fine to do this as i think it flew off Islay and we are only intrested in movements within Islay
+GWfG_pairs <- GWfG_pairs %>%  filter(Dist_difm > -10000)
+
+# GWFGmean <- mean(GWfG_pairs$min_shot_dist)
+# GWfGSd <- sd(GWfG_pairs$min_shot_dist)
+# GWfG_pairs$min_shot_dist_scale <- (GWfG_pairs$min_shot_dist-GWFGmean)/GWfGSd
 
 ## loop through each threshold value individual and save model AICc in ouput data set
 for(i in 2:length(dist_seq)) {
   
   svMisc::progress(i, max.value = length(dist_seq))
   
-  model <- lmer(Dist_difm ~ threshold1(min_shot_dist, dist_seq[i]) +  winter + TOD_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
+  model <- lmer(Dist_difm ~ threshold1(min_shot_dist, dist_seq[i]) + winter + poly(TOD_sc,2) + (1|Tag_ID), 
                 data= GWfG_pairs,
                 REML=FALSE)
   
@@ -1108,7 +1117,7 @@ dist_seq[which.min(outputGWfG$AIC)] # threshold point in meters
 
 #### Plot output of the top threshold model
 ## use lmerTest::lmer to get p-values using the Satterthwaite approximation
-top.modelGWfG <- lmerTest::lmer(Dist_difm ~ threshold1(min_shot_dist, 1400) + winter + TOD_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
+top.modelGWfG <- lmerTest::lmer(Dist_difm ~ threshold1(min_shot_dist, 2300) + winter + TOD_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
                      data=GWfG_pairs,
                      REML=FALSE)
 summary(top.modelGWfG)
@@ -1164,6 +1173,9 @@ outputGBG2 <- output
 ## filter the data set for each species
 GBG_pairs2 <- filter(Consec_pair, species == "GBG")
 
+## re-assign as factor for random intercept fitting
+GBG_pairs2$Tag_ID <- as.factor(as.character(GBG_pairs2$Tag_ID))
+
 
 ##
 #### GBG double threshold model
@@ -1174,7 +1186,7 @@ for(i in 2:nrow(dist_seq2)) {
   
   svMisc::progress(i, max.value = nrow(dist_seq2))
   
-  model <- lmer(Dist_difm ~ threshold2(min_shot_dist, dist_seq2$t1[i], dist_seq2$t2[i]) + winter + TOD_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
+  model <- lmer(Dist_difm ~ threshold2(min_shot_dist, dist_seq2$t1[i], dist_seq2$t2[i]) + + winter + poly(TOD_sc,2) + (1|Shoot_ID1) + (1|Tag_ID), 
                 data= GBG_pairs2,
                 REML=FALSE)
   
