@@ -606,7 +606,7 @@ ggplot() +
 
 
 ## Save a plot
-# ggsave("Plots/Script 4) plots/Proportion_Stationary.png", 
+# ggsave("Plots/Script 3) plots/Proportion_Stationary.png", 
 #        width = 19, height = 22, units = "cm")
 
 
@@ -708,7 +708,7 @@ ggplot() +
 
 
 ## Save a plot
-# ggsave("Plots/Script 4) plots/Proportion_Flight.png", 
+# ggsave("Plots/Script 3) plots/Proportion_Flight.png", 
 #        width = 19, height = 22, units = "cm")
 
 
@@ -810,7 +810,7 @@ ggplot() +
         strip.text.x = element_text(size =12))
 
 ## Save a plot
-# ggsave("Plots/Script 4) plots/Proportion_Grazing.png", 
+# ggsave("Plots/Script 3) plots/Proportion_Grazing.png", 
 #        width = 19, height = 22, units = "cm")
 
 
@@ -858,7 +858,7 @@ ggplot() +
         strip.text.x = element_text(size =12))
 
 ## Save a plot
-# ggsave("Plots/Script 4) plots/Proportion_Grazing_NoInteraction.png", 
+# ggsave("Plots/Script 3) plots/Proportion_Grazing_NoInteraction.png", 
 #        width = 19, height = 22, units = "cm")
 
 
@@ -896,6 +896,6 @@ ggplot() +
         strip.text.x = element_text(size =12))
 
 ## Save a plot
-# ggsave("Plots/Script 4) plots/Proportion_Allbehaviours.png", 
+# ggsave("Plots/Script 3) plots/Proportion_Allbehaviours.png", 
 #        width = 24, height = 22, units = "cm")
 

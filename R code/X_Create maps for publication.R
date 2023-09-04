@@ -135,12 +135,12 @@ IslayMap <- ggplot() +
           
           # add other spatial objects
           geom_sf(data = Ram, aes(geometry = geometry, fill = "#43b284"), alpha = 0.6) +
-          scale_fill_manual(name = "RAMSAR Sites",
+          scale_fill_manual(name = "Nature Reserves",
                             values =c("#43b284"="#43b284"),
                             labels = c("")) +
           
           geom_sf(data = Road_cr, aes(geometry = geometry, colour = "#0f7ba2"), fill = NA, alpha = 0.8, size = 0.75) +
-          scale_colour_manual(name = "Roads",
+          scale_colour_manual(name = "Public Roads",
                             values =c("#0f7ba2"="#0f7ba2"),
                             labels = c("")) +
           new_scale_color() +

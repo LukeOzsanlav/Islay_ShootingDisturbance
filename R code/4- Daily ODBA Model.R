@@ -714,6 +714,6 @@ ggplot() +
         legend.text = element_text(size =14))
 
 ## Save a plot
-# ggsave("Plots/Script 5) plots/Average daily ODBA by species.png", 
+# ggsave("Plots/Script 4) plots/Average daily ODBA by species.png", 
 #        width = 18, height = 20, units = "cm")
 
