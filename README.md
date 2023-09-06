@@ -10,10 +10,10 @@ The impact of shooting on time-activity budgets, movement and habitat selection 
 - Stuart Bearhop <a itemprop="sameAs" content="https://orcid.org/0000-0002-5864-0129" href="https://orcid.org/0000-0002-5864-0129" target="orcid.widget" rel="me noopener noreferrer" style="vertical-align:top;"><img src="https://orcid.org/sites/default/files/images/orcid_16x16.png" alt="ORCID iD icon" style="width:1em;margin-right:.5em;"/></a>
 
 ## Code description 👨‍💻
-- `R code/1_Combine tracking data + label with landcover.R`: Prepare GWfG tracking data for analysis
-- `R code/2_Shooting proximity effects on Distance travelled.R`: Modelling the immediate movement in reponse to shooting
-- `R code/4_Daily behaviour on shooting vs non-shooting days.R`: Modelling behavioral changes in response to shooting disturbance (GWfG only)
-- `R code/5_Daily ODBA on shooting vs non-shooting days.R`; Modelling change in daily ODBA due to shooting disturbance
+- `R code/1- Combine tracks + Add landcover.R`: Prepare GWfG tracking data for analysis
+- `R code/2- Displacement Model.R`: Modelling the immediate movement in reponse to shooting
+- `R code/3- Daily Behaviour Model.R`: Modelling behavioral changes in response to shooting disturbance (GWfG only)
+- `R code/4- Daily ODBA Model.R`; Modelling change in daily ODBA due to shooting disturbance
 - `R code/X_Create maps for publication.R`: Create maps of Islay, including habitat and roads
 - `R code/Useful Functions` folder containing useful code for this project, it is not used in the main work flow
 
