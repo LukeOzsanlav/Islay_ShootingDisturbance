@@ -11,18 +11,18 @@ The impact of shooting on time-activity budgets, movement and habitat selection 
 
 ## Code description 👨‍💻
 - `R code/1- Combine tracks + Add landcover.R`: Prepare GWfG tracking data for analysis
-- `R code/2- Displacement Model.R`: Modelling the immediate movement in reponse to shooting
+- `R code/2- Displacement Model.R`: Modelling the immediate displacement in reponse to shooting
 - `R code/3- Daily Behaviour Model.R`: Modelling behavioral changes in response to shooting disturbance (GWfG only)
-- `R code/4- Daily ODBA Model.R`; Modelling change in daily ODBA due to shooting disturbance
+- `R code/4- Daily ODBA Model.R`: Modelling change in daily ODBA due to shooting disturbance
 - `R code/X_Create maps for publication.R`: Create maps of Islay, including habitat and roads
 - `R code/Useful Functions` folder containing useful code for this project, it is not used in the main work flow
 
 ## Data description 📊
-- `Landcover Data/Islay landcover data`: habitat data from Islay from the years 2015, 2017, 2018, 2019 amd 2020 as rasters. This was cropped from larger UK raster using `1_Crop RAW landcover data.R`
+- `Landcover Data/Islay landcover data`: habitat data from Islay from the years 2015, 2017, 2018, 2019 amd 2020 as rasters. This was cropped from larger UK wide raster 
 - `Landcover Data/High-Res Coastline`: high resultion coast outline for the UK and Islay and bounding boxes for both regions
 - `Landcover Data/88090_ISLAY_GMS_FIELD_BOUNDARY` shapefile of all the agricultural field boundaries on Islay
-- `Landcover Data/Ramsar Outline`: Shapefiles of the two RAMSAR areas on Islay. One at Gruinart and one at the Oa
-- `Landcover Data/Roads`: shapefile of all classified roads in Scotland
+- `Landcover Data/Ramsar Outline`: shapefiles of the two RAMSAR areas on Islay. One at Gruinart and one at the Oa
+- `Landcover Data/Roads`: shapefile of all classified public roads in Scotland
 - `MetaData/Tagged bird summary data new.csv` metadata file that contains the sex, ringing location and deployment dates of all tagged GWfG
 - `Shooting logs/All_logs_cleaned.csv`: All cleaned shooting logs from Islay containing the information on each shooting event
 - `Derived data/All_winter_GPS_with_habitat.RDS` R data file containing all of the winter Islay GPS fixes for GWfG with the habitats appended from `Landcover Data/Islay landcover data`
