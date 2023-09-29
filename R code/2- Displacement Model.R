@@ -50,11 +50,6 @@ library(ggplot2)
 ## 10. Use threshold model to find distance were there is not shooting effect
 ## 11. Model species separately and together
 
-## Improvements overall:
-## 2. Pick controls fixes from other birds that were undisturbed at the same time
-## 3. plot output of effects package in ggplot
-## 4. Can I use another package that will model species specific thresholds simultaneously and calculate if they are significantly different
-
 
 
 ##                                           ##
@@ -1093,7 +1088,7 @@ for(i in 2:length(dist_seq)) {
   
   svMisc::progress(i, max.value = length(dist_seq))
   
-  model <- lmer(Dist_difm ~ threshold1(min_shot_dist, dist_seq[i]) + winter + poly(TOD_sc,2) + (1|Tag_ID), 
+  model <- lmer(Dist_difm ~ threshold1(min_shot_dist, dist_seq[i]) + winter + poly(TOD_sc,2) + (1|Shoot_ID1) + (1|Tag_ID), 
                 data= GWfG_pairs,
                 REML=FALSE)
   
@@ -1397,49 +1392,3 @@ ggsave("Plots/Script 2) plots/Displacement [(t+1)-(t-1)].png",
 
 
 
-
-
-# 
-# 
-# ##
-# #### XX. Misc Functions ####
-# ##
-# ## Function to calculate threshold point for a disturbance model
-# Threshold_finder <- function(data = data){
-#   
-#   ## create data frame to put the output in
-#   output_boot <- data.frame(model=as.numeric(),AIC=numeric())
-#   
-#   ## create sequence of distances, each of which will be used as the break point in the model
-#   dist_seq_boot <- seq(0, 3000, 10)
-#   
-#   ## loop through each threshold value individual and save model AICc in ouput data set
-#   for(i in 1:length(dist_seq_boot)) {
-#     
-#     ## run the model
-#     model <- lmer(speed_dif ~ threshold1(min_shot_dist, dist_seq_boot[i]) + TOD_sc + year + from_nov1_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
-#                   data= data,
-#                   REML=FALSE)
-#     
-#     output_boot[i,]<-c(dist_seq_boot[i], MuMIn::AICc(model))
-#     
-#   }
-#   
-#   ## Which model has the lowest AICc
-#   threshold_row <- as.numeric(which.min(output_boot$AIC))
-#   
-#   ## return the distance for the model with the lowest AICc
-#   Threshold_point <- output_boot$model[threshold_row]
-#   Threshold_point
-# 
-# }
-# 
-# 
-# ## using the boot function calcualte a bootstrap CI for the threshold point
-# ## need to think about on what levels i do the sampling
-# ## I.e. just sample from all data, stratify so just sample within individuals, sampling unit as each individual
-# boot_guess <- boot::boot(data = GBG_pairs, statistic = Threshold_finder, R = 100, sim = "parametric")
-# 
-# summary(boot_guess)
-# 
-# 

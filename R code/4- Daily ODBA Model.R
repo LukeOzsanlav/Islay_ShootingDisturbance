@@ -42,6 +42,8 @@ GWfG_Orn <- GWfG_Orn %>%
             filter(year_day >= 305 | year_day <= 92)
 
 
+
+
 #----------------------------------#
 #### 1.2 GWfG Ecotone ODBA data ####
 #----------------------------------#
@@ -65,6 +67,8 @@ GWfG_Eco <- GWfG_Eco %>%
             filter(year_day >= 305 | year_day <= 92)
 
 
+
+
 #-------------------------------------------#
 #### 1.3 Bind two GWfG datasets together ####
 #-------------------------------------------#
@@ -76,7 +80,6 @@ setnames(GWfG_Eco, old = "Tag_ID", new = "device_id")
 
 ## Bind the two datasets together for GWfG
 winter_GWfG <- plyr::rbind.fill(GWfG_Orn, GWfG_Eco)
-
 
 
 ## Add sex data to the GWfG data
@@ -148,7 +151,6 @@ winter_GWfG3 <- filter(winter_GWfG3, !device_id == 17795)
 
 
 
-
 #------------------------------------#
 #### 4. Read in the GBG ODBA data ####
 #------------------------------------#
@@ -193,7 +195,6 @@ GBG_ODBA <- sf_to_df(Islay_GBG_sf, fill = T)
 
 
 
-
 #-----------------------------------------------#
 #### 5. Join together GBG and GWfG ODBA data ####
 #-----------------------------------------------#
@@ -218,7 +219,6 @@ winter_GWfG3$Species <- "GWfG"
 ## bind the two together
 All_winter_ODBA <- plyr::rbind.fill(winter_GWfG3, GBG_ODBA)
 table(All_winter_ODBA$device_id); unique(All_winter_ODBA$Sex)
-
 
 
 
@@ -260,6 +260,7 @@ winter_gps$ID <- 1:nrow(winter_gps)
 
 
 
+
 #-------------------------------------------------------#                                                
 #### 6.2 Read in shooting data and field boundaries ####
 #-------------------------------------------------------#                                               
@@ -289,6 +290,7 @@ Fields <- Fields %>% filter(!ind3)
 
 
 
+
 #--------------------------------------------------------#                                               
 #### 6.3 Combine shooting data and spatial field data ####
 #--------------------------------------------------------#                                                    
@@ -309,6 +311,7 @@ winter_shots_cent2$shot_ID <- 1:nrow(winter_shots_cent2)
 ## Make winter_shots_cent2 an sf object again
 winter_shots_cent_sf <- st_as_sf(winter_shots_cent2)
 winter_shots_cent_sf <- st_transform(winter_shots_cent_sf, crs = st_crs(Field_centres))
+
 
 
 
@@ -414,7 +417,6 @@ Shoot_proximity <- function(TD = TD, SD = SD, time_tresh = time_tresh, dist_thre
 }
 
 
-
 ## run the function
 ## Used 2000m as the distance threshold, they ony tested up to c1,500m in the Islay study and at this distance the effect became small
 ## Added c500m on to allow a bit of wiggle room
@@ -510,7 +512,6 @@ ODBASum2$n_shot <- ifelse(is.na(ODBASum2$n_shot)==T, 0, ODBASum2$n_shot)
 #### 10. Model Average daily ODBA on shooting vs non-shooting days ####
 #---------------------------------------------------------------------#
 
-
 #-----------------------------------------#
 #### 10.1 Add columns for use in model ####
 #-----------------------------------------#
@@ -535,6 +536,7 @@ ODBASum2$from_nov1 <- as.numeric(ODBASum2$from_nov1)
 ## Create another column for the inverse of the varience and standard errors
 ODBASum2$InVar_ODBA <- 1/ODBASum2$Var_ODBA
 ODBASum2$InStEr_ODBA <- 1/ODBASum2$StEr_ODBA
+
 
 
 

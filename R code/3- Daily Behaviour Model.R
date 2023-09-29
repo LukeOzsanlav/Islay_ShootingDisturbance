@@ -8,13 +8,9 @@ library(tidyverse)
 library(lubridate)
 library(data.table)
 library(zoo)
-library(svMisc)
 library(suncalc)
-
 library(geosphere)
 library(sf)
-library(amt)
-
 library(lme4)
 library(DHARMa)
 library(MuMIn)
@@ -24,16 +20,10 @@ library(glmmTMB)
 
 
 
-## TO DO:
-## Properly filter the ACC data so no burst from off Islay are used
-## Filter out to only have birds that were on Islay for a certain number of days
-
-
 
 ##
 #### 1. Read in data sets ####
 ##
-
 
 ##
 #### 1.1 Read in classified ACC data ####
@@ -88,11 +78,9 @@ GPS_set$ID <- 1:nrow(GPS_set)
 
 
 
-
 ##                                                 
 #### 1.3 Read in shooting data and field boundaries ####
 ##                                                 
-
 
 ## read in the shooting logs
 Logs <- fread("Shooting logs/All_logs_cleaned.csv")
@@ -106,7 +94,6 @@ winter_logs <- filter(Logs, timestamp > min(GPS_data$UTC_datetime) & timestamp <
 
 ## Now filter out just the shooting events
 winter_shots <- filter(winter_logs, Shots_fired_Cl > 0)
-
 
 
 ## read in the shapefiles of the Islay field boundaries
@@ -126,7 +113,6 @@ Fields <- Fields %>% filter(!ind3)
 #### 2. Combine shooting data and spatial field data ####
 ##                                                   
 
-
 ## calculate the centroid of each field
 Field_centres <- st_centroid(Fields)
 
@@ -143,9 +129,6 @@ winter_shots_cent2$shot_ID <- 1:nrow(winter_shots_cent2)
 ## Make winter_shots_cent2 an sf object again
 winter_shots_cent_sf <- st_as_sf(winter_shots_cent2)
 winter_shots_cent_sf <- st_transform(winter_shots_cent_sf, crs = st_crs(Field_centres))
-
-
-
 
 
 
@@ -169,12 +152,9 @@ Islay_orn_behav <- filter(winter_orn_behav, tag_date %in% UnQs)
 
 
 
-
-
 ##                                                   
 #### 4. Label fixes associated with each shooting event ####
 ##                                                     
-
 
 ## Define function that converts timestamp immediately before shooting event the smallest value
 ## y needs to be the timestamps from the tracking data and x is just a single value from the shooting data sequence
@@ -268,11 +248,8 @@ Shoot_proximity <- function(TD = TD, SD = SD, time_tresh = time_tresh, dist_thre
     Prox_list[[i]] <- bb3
     
   }
-  
   Prox_list
-  
 }
-
 
 
 ## run the function
@@ -282,10 +259,6 @@ system.time(Prox_list <- Shoot_proximity(TD = GPS_set, SD = winter_shots_cent2, 
 
 ## bind the lists together into one data frame
 All_prox <- plyr::ldply(Prox_list)
-
-
-
-
 
 
 
@@ -308,11 +281,9 @@ DistSum <- All_prox %>%
 
 
 
-
 ##
 #### 6. Summarize daily behavior ####
 ##
-
 
 ## First label times as either day or night
 ## "sunrise" and "sunset" gave short days, i.e. the geese wouls still be out on daytime feeding sites
@@ -326,7 +297,6 @@ sunt <-
     lon = 6.246,
     tz = "UTC"
   )
-
 
 ## Add a column for the date
 Islay_orn_behav$date <- as.Date(Islay_orn_behav$UTC_datetime)
@@ -346,7 +316,6 @@ Islay_orn_behav2$Stat <- ifelse(Islay_orn_behav2$Behaviour == "stationary", 1, 0
 Islay_orn_behav2$Active <- ifelse(Islay_orn_behav2$Behaviour == "graze" | Islay_orn_behav2$Behaviour == "walk", 1, 0)
 
 
-
 ## Create summary of behaviors before and after shooting
 BehSum <- Islay_orn_behav2 %>% 
           group_by(date, Tag_ID, DayNight) %>% 
@@ -359,16 +328,15 @@ BehSum <- Islay_orn_behav2 %>%
 
 
 
+
 ##
 #### 7. Add on number of shooing events to the dataset ####
 ##
-
 
 ## join number of shots and daily behavioral summary
 BehSum$Tag_ID <- as.character(BehSum$Tag_ID)
 BehSum2 <- left_join(BehSum, DistSum, by = c("date", "Tag_ID"))
 stopifnot(nrow(BehSum2)==nrow(BehSum2))
-
 
 ## change all the NAs in the n_shot column to 0s
 BehSum2$n_shot <- ifelse(is.na(BehSum2$n_shot)==T, 0, BehSum2$n_shot)
@@ -376,13 +344,9 @@ BehSum2$n_shot <- ifelse(is.na(BehSum2$n_shot)==T, 0, BehSum2$n_shot)
 
 
 
-
-
-
 ##
 #### 8. Model the proportion of time spent of certain behaviors varies ####
 ##
-
 
 ## Add extra columns to put in to the model
 BehSum2$year <- year(BehSum2$date) # year column
@@ -403,7 +367,6 @@ BehSum2$Not_Walk <- BehSum2$Total - BehSum2$Walk
 BehSum2$Not_Flight <- BehSum2$Total - BehSum2$Flight
 BehSum2$Not_Stat <- BehSum2$Total - BehSum2$Stat
 
-
 ## set variables as correct class
 BehSum2$year <- as.factor(BehSum2$year)
 BehSum2$from_nov1 <- as.numeric(BehSum2$from_nov1)
@@ -411,7 +374,6 @@ BehSum2$DayNight <- as.factor(BehSum2$DayNight)
 BehSum2$Tag_ID <- as.factor(BehSum2$Tag_ID)
 BehSum2$shot <- as.factor(BehSum2$shot)
 BehSum2$from_nov1Factor <- as.factor(BehSum2$from_nov1)
-
 
 BehSum2$obs <- 1:nrow(BehSum2)
 BehSum3 <- filter(BehSum2, DayNight == "day")
@@ -448,10 +410,6 @@ BehSum3 <- filter(BehSum3, !from_nov1 == maxNov1)
 
 
 
-
-
-
-
 ##
 #### 8.1 Walk model ####
 ##
@@ -462,7 +420,6 @@ hist(sqrt(BehSum2$Walk))
 Walk_mod <- glmmTMB(formula = cbind(Walk, Not_Walk) ~ shot*DayNight + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                      data = BehSum3,
                      family = betabinomial)
-
 
 summary(Walk_mod)
 drop1(Walk_mod, test = "Chi")
@@ -504,9 +461,6 @@ delta6_set <- subset(nested_set, delta<=6, recalc.weights=T)
 ## plot the model effects
 top_mod_effects <- predictorEffects(Walk_mod)
 plot(top_mod_effects)
-
-
-
 
 
 
@@ -612,8 +566,6 @@ ggplot() +
 
 
 
-
-
 ##
 #### 8.3 Flight model ####
 ##
@@ -710,12 +662,6 @@ ggplot() +
 ## Save a plot
 # ggsave("Plots/Script 3) plots/Proportion_Flight.png", 
 #        width = 19, height = 22, units = "cm")
-
-
-
-
-
-
 
 
 
@@ -860,8 +806,6 @@ ggplot() +
 ## Save a plot
 # ggsave("Plots/Script 3) plots/Proportion_Grazing_NoInteraction.png", 
 #        width = 19, height = 22, units = "cm")
-
-
 
 
 
