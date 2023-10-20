@@ -646,7 +646,8 @@ Mod_None <-  glmmTMB(formula = Sum_ODBA ~ n_readings + Sex + winter + poly(from_
 AIC(Mod_Int, Mod_NoInt, Mod_Species, Mod_Shot, Mod_None)
 
 ## Now get the estimates from the main mode
-summary(Mod_NoInt) # quick summary
+summary(Mod_None) # quick summary
+confint(Mod_None) #confidence intervals
 MuMIn::r.squaredGLMM(Mod_None)
 confint(Mod_Int)
 
@@ -679,7 +680,7 @@ PairComp$highCI <- PairComp$estimate + (1.96*PairComp$SE)
 
 ## use the effects package, and ggplot to plot the model predictions
 ## first the effects for each predicitor
-top_mod_effects <- predictorEffects(Mod_Int)
+top_mod_effects <- predictorEffects(Mod_None)
 plot(top_mod_effects)
 
 ## now extract the fits for the first variable and bind them together
