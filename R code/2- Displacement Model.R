@@ -1,19 +1,27 @@
+##----------------------------------------##
 ## Luke Ozsanlav-Harris
+## Created: 13/01/2022
 
-## 13/01/2022
+## Aims: Examining the effect that shooting has on movement
+##       In particular comparing the step length immediately before and during shooting disturbance 
 
-## Examining the effect that shooting has on movement, in particular the step length immediately after shooting disturbance. 
-## Idea here is to model disturbed vs undisturbed step lengths
-## This can either be done within individuals or between individuals
-## Approach 1) within individuals. Compare step length before and during disturbance with an individual and compare
-## Approach 2) between individual. Compare step lengths during disturbance to those from other individuals at the same time elsewere on the Island
+##----------------------------------------##
 
-# Approach 1) model: SL ~ disturbed + TOD + DOY^2 + (1|Pair ID) + (1|Tag ID) ..... these two random effects might need to be nested e.g. (1|Pair ID:Tag ID)
-#                   note: might be easier to model the change between the control and treatment or a proportion of the two
-# Approach 2) model:
-#                   note: Might want to include the time difference between the control and treatment
+## Script Overview by section
+## 1.1 Read in and clean Ecotone GPS data
+## 1.2 Read in and clean Ornitela GPS data
+## 1.3 Join together GPS data sets
+## 1.4 Read in GBG tracking and join to GWfG data
+## 1.5 Read out GWfG tag codes for associations matrix
+## 2.  Re sample all tracking data 
+## 3.  Read in shooting data and field boundaries
+## 4.  Combine shooting data and spatial field data
+## 5.  Label fixes associated with each shooting event
+## 6.  Deal with multi-associations and add shooting times
+## 7.  Add shooting associations back to the full tracking data set
+## 8.  Identify suitable paired observations within individuals
+## 9.  Prepare data for models
 
-## NOTE: This approach uses differences in distances instead of speed
 
 ## Packages required
 library(amt)
@@ -30,25 +38,7 @@ library(effects)
 library(performance)
 library(lmerTest)
 library(ggplot2)
-
-## Vignette for the effects package: https://cran.r-project.org/web/packages/effects/vignettes/predictor-effects-gallery.pdf
-
-## Script Structure...
-## 1.1 Read in and clean Ecotone GPS data
-## 1.2 Read in and clean Ornitela GPS data
-## 1.3 Join together GPS data sets
-## 1.4 Read in GBG tracking and join to GWfG data
-## 1.5 Read out GWfG tag codes for associations matrix
-## 2.  Re sample all tracking data 
-## 3.  Read in shooting data and field boundaries
-## 4.  Combine shooting data and spatial field data
-## 5.  Label fixes associated with each shooting event
-## 6.  Deal with multi-associations and add shooting times
-## 7.  Add shooting associations back to the full tracking data set
-## 8.  Identify suitable paired observations within individuals
-## 9.  Prepare data for models
-## 10. Use threshold model to find distance were there is not shooting effect
-## 11. Model species separately and together
+library(glmmTMB)
 
 
 
@@ -880,376 +870,109 @@ hist(final_pairs4$Dist_difm)
 
 
 
-##                                                                              
-#### 10. Use threshold model to find distance were there is not shooting effect ####
-##  
+
 
 ##
-#### 10.1 Define functions for threshold model ####
+##### 10. Model Step Length Change as Function of Distance to Shot ####
 ##
 
-## Single Threshold Model Function
-## This goes into the lmer model formula
-threshold1<-function(age,T1)
-{
-  # T1 threshold for age
-  #
-  age.1 <- age.2 <- age
-  age.1[age.1 > T1] <- T1
-  age.2[age.2 <= T1] <- 0
-  age.2[age.2 > T1] <- age.2[age.2 > T1] - T1
-  cbind(age1.1 = age.1, age1.2 = age.2)
-}
-
-## Double Threshold Model Function 
-threshold2<-function(age,T1,T2)
-{
-  # T1 & T2 thresholds for age
-  #
-  age.1 <- age.2 <- age.3 <- age
-  age.1[age.1 > T1] <- T1
-  age.2[age.2 <= T1] <- 0
-  age.2[age.2 <= T2 & age.2 > T1] <- age.2[age.2 <= T2 & age.2 > T1] - T1
-  age.2[age.2 > T2] <- T2 - T1
-  age.3[age.3 <= T2] <- 0
-  age.3[age.3 > T2] <- age.3[age.3 > T2] - T2
-  cbind(age2.1 = age.1, age2.2 = age.2, age2.3 = age.3)
-}
-
-# Make empty outputs to store model AICs
-summary(final_pairs4$min_shot_dist)
-output <- data.frame(model=as.numeric(), AIC=numeric()) # This is for single threshold model 
+## 
+#### 10.1 Prepare Data sets ####
+##
 
 ## Pick which data sets I want to put into the models
 Consec_pair <- dplyr::filter(final_pairs4, control == "Shoot_T-1")
 Consec_pair <- dplyr::filter(Consec_pair, is.na(species) == F) # removes any rows were the data for the shooting event is missing
-Gap_pair <- dplyr::filter(final_pairs4, control == "T-1_T+1")
-Gap_pair <- dplyr::filter(Gap_pair, is.na(species) == F) # removes any rows were the data for the shooting event is missing
-
-
-
-##
-#### 11.1: Option 1: model both species together, forcing them to have same threshold ####
-##
-
-## create sequence of distances, each of which will be used as the break point in the model
-dist_seq <- seq(0,3950,50)
-
-## create its own output data set 
-output1 <- output
-
-## loop through each threshold value individual and save model AICc in output data set
-## List of possible predictors: species + TOD_sc + winter + from_nov1_sc + I(from_nov1_sc^2) + (1|Shoot_ID1) + (1|Tag_ID)
-
-## start at 2 as 1 is 0metres
-for(i in 2:length(dist_seq)) {
-  
-  svMisc::progress(i, max.value = length(dist_seq))
-  
-  model <- lmer(Dist_difm ~ threshold1(min_shot_dist, dist_seq[i])*species + winter + TOD_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
-                data=Consec_pair,
-                REML=FALSE)
-  
-  output1[i,]<-c(dist_seq[i], MuMIn::AICc(model))
-  
-}
-
-output1
-plot(output1$model, output1$AIC)
-dist_seq[which.min(output1$AIC)] ## threshold point in metres
-
-
-#### Plot output of the top threshold model
-top.model <- lmer(Dist_difm ~ threshold1(min_shot_dist, 1400)*species + winter + TOD_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
-                  data=Consec_pair,
-                  REML=FALSE)
-
-## use the effects package, and ggplot to plot the model predictions
-## first the effects for each predicitor
-divisions <- 200
-top_mod_effects <- predictorEffects(top.model, focal.levels = divisions)
-model_performance(top.model)
-
-## now extract the fits for the first variable and bind them together
-effects1 <- top_mod_effects[1]
-fit1 <- as.data.frame(cbind(effects1[["min_shot_dist"]][["fit"]], effects1[["min_shot_dist"]][["lower"]], 
-                            effects1[["min_shot_dist"]][["upper"]], effects1[["min_shot_dist"]][["x"]][["min_shot_dist"]]))
-## change the names to something meaningful
-setnames(fit1, old = c("V1", "V2", "V3", "V4"), new = c("fit", "lower", "upper", "dist_to_shot"))
-## add a species column first half is GBG as that come first in the alphabet
-fit1$Species <- NA
-fit1$Species[1:divisions] <- "Barnacle"
-fit1$Species[(divisions+1):(divisions*2)] <- "White-fronted"
-
-## Now plot using ggplot
-ggplot() + 
-  geom_line(data=fit1, aes(x= dist_to_shot, y = fit, group = Species, colour = Species), size = 1.25)  +
-  geom_ribbon(data = fit1, aes(x=dist_to_shot, ymin = lower, ymax = upper, group = Species, colour = Species), 
-              alpha = 0.3, colour = NA, fill = "grey") + 
-  ylab("Difference in distance (m) [t-(t-1)]") + xlab("Distance to shot (m)") +
-  theme_bw() +
-  scale_colour_manual(values=c("#0072B2", "#D55E00")) +
-  xlim (0, 3000) +
-  theme(panel.grid.minor.y = element_blank(),
-        axis.title=element_text(size=12,), 
-        panel.grid.minor.x = element_blank())
-
-
-
-
-
-
-
-
-##
-#### 11.2 Option 2: model both species separately, Different thresholds ####
-##
-
-## create its own output data set 
-outputGBG <- output
-outputGWfG <- output
 
 ## filter the data set for each species
 GBG_pairs <- dplyr::filter(Consec_pair, species == "GBG")
 GWfG_pairs <- dplyr::filter(Consec_pair, species == "GWfG")
 
-
-##
-#### GBG threshold model
-##
-
-## re-assign as factor for random intercept fitting
-GBG_pairs$Tag_ID <- as.factor(as.character(GBG_pairs$Tag_ID))
-
-## loop through each threshold value individual and save model AICc in ouput data set
-for(i in 2:length(dist_seq)) {
-  
-  svMisc::progress(i, max.value = length(dist_seq))
-  
-  model <- lmer(Dist_difm ~ threshold1(min_shot_dist, dist_seq[i]) + winter + poly(TOD_sc,2) + (1|Shoot_ID1) + (1|Tag_ID), 
-                data= GBG_pairs,
-                REML=FALSE)
-  
-  outputGBG[i,]<-c(dist_seq[i], MuMIn::AICc(model))
-  
-}
-
-#outputGBG
-ggplot(data = outputGBG) + geom_point(aes(x= model, y= AIC)) +
-  xlab("Distance to shot (m)") +
-  theme_bw() +
-  theme(panel.grid.minor.y = element_blank(),
-        axis.title=element_text(size=12,), 
-        panel.grid.minor.x = element_blank(), 
-        panel.grid.major.y = element_blank())
-
-ggsave("Plots/Script 2) plots/AIC GBG single threshold.png", 
-       width = 20, height = 15, units = "cm")
-dist_seq[which.min(outputGBG$AIC)] # threshold point in meters
-
-
-#### Plot output of the top threshold model
-top.modelGBG <- lmerTest::lmer(Dist_difm ~ threshold1(min_shot_dist, 1000) + + winter + poly(TOD_sc,2) + (1|Shoot_ID1) + (1|Tag_ID), 
-                  data=GBG_pairs,
-                  REML=FALSE)
-summary(top.modelGBG)
-
-
-
-## use the effects package to extract the fit for the first variable
-GBG_mod_effects <- predictorEffects(top.modelGBG, focal.levels = divisions)
-plot(GBG_mod_effects[1])
-effectsGBG <- GBG_mod_effects[1]
-fitGBG <- as.data.frame(cbind(effectsGBG[["min_shot_dist"]][["fit"]], effectsGBG[["min_shot_dist"]][["lower"]], 
-                            effectsGBG[["min_shot_dist"]][["upper"]], effectsGBG[["min_shot_dist"]][["x"]][["min_shot_dist"]]))
-## change the names to something meaningful
-setnames(fitGBG, old = c("V1", "V2", "V3", "V4"), new = c("fit", "lower", "upper", "dist_to_shot"))
-## add a species column first half is GBG as that come first in the alphabet
-fitGBG$Species <- "Barnacle"
-
-
-
-##
-#### GWfG threshold model
-##
-
-## re-assign as factor for random intercept fitting
-GWfG_pairs$Tag_ID <- as.factor(as.character(GWfG_pairs$Tag_ID))
-
-## remove one big value, fine to do this as i think it flew off Islay and we are only intrested in movements within Islay
+## remove one big value, in this instance the bird actually started migration so capturing a different behaviour to this analysis
 GWfG_pairs <- GWfG_pairs %>%  filter(Dist_difm > -10000)
 
-# GWFGmean <- mean(GWfG_pairs$min_shot_dist)
-# GWfGSd <- sd(GWfG_pairs$min_shot_dist)
-# GWfG_pairs$min_shot_dist_scale <- (GWfG_pairs$min_shot_dist-GWFGmean)/GWfGSd
 
-## loop through each threshold value individual and save model AICc in ouput data set
-for(i in 2:length(dist_seq)) {
-  
-  svMisc::progress(i, max.value = length(dist_seq))
-  
-  model <- lmer(Dist_difm ~ threshold1(min_shot_dist, dist_seq[i]) + winter + poly(TOD_sc,2) + (1|Shoot_ID1) + (1|Tag_ID), 
-                data= GWfG_pairs,
-                REML=FALSE)
-  
-  outputGWfG[i,]<-c(dist_seq[i], MuMIn::AICc(model))
-  
-}
+## 
+#### 10.2 GBG Model ####
+##
 
-outputGWfG
-ggplot(data = outputGWfG) + geom_point(aes(x= model, y= AIC)) +
-  xlab("Distance to shot (m)") +
-  theme_bw() +
-  theme(panel.grid.minor.y = element_blank(),
-        axis.title=element_text(size=12,), 
-        panel.grid.minor.x = element_blank(), 
-        panel.grid.major.y = element_blank())
+## Model for Barnacle Geese
+model_GB <- lmer(Dist_difm ~ log(min_shot_dist) + poly(TOD_,2) + winter + (1|Tag_ID), 
+                    data= GBG_pairs,
+                    REML=FALSE)
 
-ggsave("Plots/Script 2) plots/AIC GWfG single threshold.png", 
-       width = 20, height = 15, units = "cm")
-dist_seq[which.min(outputGWfG$AIC)] # threshold point in meters
+## Investigate model
+summary(model_GB) # model summary
+confint(model_GB) # model CIs
+performance::check_model(model_GB) # model check
 
 
-#### Plot output of the top threshold model
-## use lmerTest::lmer to get p-values using the Satterthwaite approximation
-top.modelGWfG <- lmerTest::lmer(Dist_difm ~ threshold1(min_shot_dist, 2300) + winter + TOD_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
-                     data=GWfG_pairs,
-                     REML=FALSE)
-summary(top.modelGWfG)
-drop1(top.modelGWfG)
-confint(top.modelGWfG)
-MuMIn::r.squaredGLMM(top.modelGWfG)
+## Use the "effects" package to create a data set that can be used to plot the effects of distance to shot
+## Extract estimates across full range of distances to shot
+GBG_mod_effects <- predictorEffects(model_GB, focal.levels = 4000)
+plot(GBG_mod_effects[1]) ## check the plot
+
+## Extract just the distance to shot estimates
+effectsGBG <- GBG_mod_effects[1]
+
+## Manipulate data frame for plotting
+fitGBG <- as.data.frame(cbind(effectsGBG[["min_shot_dist"]][["fit"]], effectsGBG[["min_shot_dist"]][["lower"]], 
+                              effectsGBG[["min_shot_dist"]][["upper"]], effectsGBG[["min_shot_dist"]][["x"]][["min_shot_dist"]]))
+## change the names to something meaningful
+setnames(fitGBG, old = c("V1", "V2", "V3", "V4"), new = c("fit", "lower", "upper", "dist_to_shot"))
+fitGBG$Species <- "Barnacle" # add on species column
 
 
-## use the effects package to extract the fit for the first variable
-GWfG_mod_effects <- predictorEffects(top.modelGWfG, focal.levels = divisions)
-plot(GWfG_mod_effects[1])
+## 
+#### 10.3 GWfG Model ####
+##
+
+## Model for GWfG
+## Winter now a random intercept term as there are many more levels in this variable
+model_GW <- lmer(Dist_difm ~ log(min_shot_dist) + poly(TOD_,2) + (1|winter) + (1|Tag_ID),
+                    REML=FALSE,
+                    data= GWfG_pairs)
+
+## Investigate model
+summary(model_GW) # model summary
+confint(model_GW) # model CIs
+performance::check_model(model_GW) # model check
+
+
+## Use the "effects" package to create a data set that can be used to plot the effects of distance to shot
+## Extract estimates across full range of distances to shot
+GWfG_mod_effects <- predictorEffects(model_GW, focal.levels = 4000)
+plot(GWfG_mod_effects[1]) ## check the plot
+
+## Extract just the distance to shot estimates
 effectsGWfG <- GWfG_mod_effects[1]
+
+## Manipulate data frame for plotting
 fitGWfG <- as.data.frame(cbind(effectsGWfG[["min_shot_dist"]][["fit"]], effectsGWfG[["min_shot_dist"]][["lower"]], 
-                              effectsGWfG[["min_shot_dist"]][["upper"]], effectsGWfG[["min_shot_dist"]][["x"]][["min_shot_dist"]]))
+                               effectsGWfG[["min_shot_dist"]][["upper"]], effectsGWfG[["min_shot_dist"]][["x"]][["min_shot_dist"]]))
 ## change the names to something meaningful
 setnames(fitGWfG, old = c("V1", "V2", "V3", "V4"), new = c("fit", "lower", "upper", "dist_to_shot"))
-## add a species column first half is GWfG as that come first in the alphabet
-fitGWfG$Species <- "White-fronted"
-
-
-
-#### Plot the output of the separate GBG and GWfG models on the same plot
-fit2 <- rbind(fitGBG, fitGWfG)
-## Now plot using ggplot
-ggplot() + 
-  geom_line(data=fit2, aes(x= dist_to_shot, y = fit, group = Species, colour = Species), size = 1.25)  +
-  geom_ribbon(data = fit2, aes(x=dist_to_shot, ymin = lower, ymax = upper, group = Species, colour = Species), 
-              alpha = 0.3, colour = NA, fill = "grey") + 
-  ylab("Difference in distance (m) [t-(t-1)]") + xlab("Distance to shot (m)") +
-  theme_bw() +
-  scale_colour_manual(values=c("#0072B2", "#D55E00")) +
-  xlim (0, 3000) +
-  theme(panel.grid.minor.y = element_blank(),
-        axis.title=element_text(size=12,), 
-        panel.grid.minor.x = element_blank())
+fitGWfG$Species <- "White-fronted" # add on species column
 
 
 
 
 
-
-##
-#### 11.3 Option 3: model GBGs separately, two thresholds points ####
+## 
+#### 10.4 Plot GBG and GWfG model outputs ####
 ##
 
-## create thresholds to trial
-dist_seq2 <- expand.grid(t1 = seq(50,3950,50), t2 =seq(50,3950,50))
-dist_seq2 <- filter(dist_seq2, t1 < t2)
+## Join together the model estimates for GBG and GWfG
+Bestfits <- rbind(fitGBG, fitGWfG) 
 
-## create its own output data set 
-outputGBG2 <- output
-
-## filter the data set for each species
-GBG_pairs2 <- filter(Consec_pair, species == "GBG")
-
-## re-assign as factor for random intercept fitting
-GBG_pairs2$Tag_ID <- as.factor(as.character(GBG_pairs2$Tag_ID))
-
-
-##
-#### GBG double threshold model
-##
-
-## loop through each threshold value individual and save model AICc in ouput data set
-for(i in 2:nrow(dist_seq2)) {
-  
-  svMisc::progress(i, max.value = nrow(dist_seq2))
-  
-  model <- lmer(Dist_difm ~ threshold2(min_shot_dist, dist_seq2$t1[i], dist_seq2$t2[i]) + + winter + poly(TOD_sc,2) + (1|Shoot_ID1) + (1|Tag_ID), 
-                data= GBG_pairs2,
-                REML=FALSE)
-  
-  outputGBG2[i,]<-c(paste0(dist_seq2$t1[i], " & ", dist_seq2$t2[i]), MuMIn::AICc(model))
-  
-}
-
-outputGBG2
-plot(outputGBG2$model, outputGBG2$AIC)
-dist_seq2[which.min(outputGBG2$AIC),] # threshold point in meters
-
-
-#### Plot output of the top threshold model
-top.modelGBG2 <- lmerTest::lmer(Dist_difm ~ threshold2(min_shot_dist, 150, 1050) + winter + TOD_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
-                               data=GBG_pairs2,
-                               REML=FALSE)
-summary(top.modelGBG2)
-drop1(top.modelGBG2)
-confint(top.modelGBG2)
-MuMIn::r.squaredGLMM(top.modelGBG2)
-
-
-## use the effects package to extract the fit for the first variable
-GBG_mod_effects2 <- predictorEffects(top.modelGBG2, focal.levels = divisions)
-plot(GBG_mod_effects2[1])
-effectsGBG2 <- GBG_mod_effects2[1]
-fitGBG2 <- as.data.frame(cbind(effectsGBG2[["min_shot_dist"]][["fit"]], effectsGBG2[["min_shot_dist"]][["lower"]], 
-                              effectsGBG2[["min_shot_dist"]][["upper"]], effectsGBG2[["min_shot_dist"]][["x"]][["min_shot_dist"]]))
-## change the names to something meaningful
-setnames(fitGBG2, old = c("V1", "V2", "V3", "V4"), new = c("fit", "lower", "upper", "dist_to_shot"))
-## add a species column first half is GBG as that come first in the alphabet
-fitGBG2$Species <- "Barnacle"
-
-
-ggplot() + 
-  geom_line(data=fitGBG2, aes(x= dist_to_shot, y = fit, colour = Species), size = 1.25)  +
-  geom_ribbon(data = fitGBG2, aes(x=dist_to_shot, ymin = lower, ymax = upper), 
-              alpha = 0.3, colour = NA, fill = "grey") + 
-  ylab("Difference in distance (m) [t-(t-1)]") + xlab("Distance to shot (m)") +
-  theme_bw() +
-  scale_colour_manual(values=c("#0072B2")) +
-  xlim (0, 3000) +
-  theme(panel.grid.minor.y = element_blank(),
-        axis.title=element_text(size=12,), 
-        panel.grid.minor.x = element_blank())
-
-
-## Find the point the lower CI equals zero, going to use this as out cut off shor disturbed/undisturbed
-top_mod_effects <- predictorEffects(top.modelGBG2, focal.levels = 10000)
-lowerCI <- top_mod_effects[["min_shot_dist"]][["lower"]] ## lower CI estimates
-Distances <- top_mod_effects[["min_shot_dist"]][["x"]][["min_shot_dist"]] ## distance from shot series
-Distances[which.min(abs(lowerCI))] # distance were lower CI is closest to zero
-
-
-##
-#### 11.4 Plot the best models for t and t-1 ####
-##
-
-## The best models were the single threshold model for GWfG and double threshold for GBG
-Bestfits <- rbind(fitGBG2, fitGWfG) ##vreate dats set
-
+## Add this species column to keep naming consisten with the MS
 Bestfits$Species <- ifelse(Bestfits$Species == "White-fronted", "GWfG", "GBG")
 
-
+## Make the plot
 ggplot() + 
-  geom_line(data=Bestfits, aes(x= dist_to_shot, y = fit, group = Species, colour = Species), size = 1.25)  +
   geom_ribbon(data = Bestfits, aes(x=dist_to_shot, ymin = lower, ymax = upper, group = Species, colour = Species), 
-              alpha = 0.3, colour = NA, fill = "grey") + 
+              alpha = 0.3, colour = NA, fill = "grey") +
+  geom_line(data=Bestfits, aes(x= dist_to_shot, y = fit, group = Species, colour = Species), size = 1.25)  +
   ylab("Difference in distance (m) [t-(t-1)]") + xlab("Distance to shot (m)") +
   theme_bw() +
   scale_colour_manual(values=c("#0072B2", "#D55E00")) +
@@ -1264,131 +987,529 @@ ggplot() +
         legend.title = element_text(size =14),
         legend.text = element_text(size =14))
 
-
-
+## save the plot 
 ggsave("Plots/Script 2) plots/Displacement [t-(t-1)] Distance version.png", 
-        width = 25, height = 15, units = "cm")
-
-
-
-
-
-##
-#### 11.5 Option 4: use t-1 and t+1 ####
-##
-
-## create its own output data set 
-outputGBG <- output
-outputGWfG <- output
-
-## filter the data set for each species
-GBG_pairs <- filter(Gap_pair, species == "GBG")
-GWfG_pairs <- filter(Gap_pair, species == "GWfG")
-
-
-##
-#### GBG threshold model
-##
-
-## loop through each threshold value individual and save model AICc in ouput data set
-for(i in 2:length(dist_seq)) {
-  
-  svMisc::progress(i, max.value = length(dist_seq))
-  
-  model <- lmer(Dist_difm ~ threshold1(min_shot_dist, dist_seq[i]) + winter + TOD_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
-                data= GBG_pairs,
-                REML=FALSE)
-  
-  outputGBG[i,]<-c(dist_seq[i], MuMIn::AICc(model))
-  
-}
-
-outputGBG
-plot(outputGBG$model, outputGBG$AIC)
-dist_seq[which.min(outputGBG$AIC)] # threshold point in meters
-
-
-#### Plot output of the top threshold model
-top.modelGBG <- lmerTest::lmer(Dist_difm ~ threshold1(min_shot_dist, 400) + winter + TOD_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
-                               data=GBG_pairs,
-                               REML=FALSE)
-summary(top.modelGBG)
-
-
-## use the effects package to extract the fit for the first variable
-GBG_mod_effects <- predictorEffects(top.modelGBG, focal.levels = divisions)
-plot(GBG_mod_effects[1])
-effectsGBG <- GBG_mod_effects[1]
-fitGBG <- as.data.frame(cbind(effectsGBG[["min_shot_dist"]][["fit"]], effectsGBG[["min_shot_dist"]][["lower"]], 
-                              effectsGBG[["min_shot_dist"]][["upper"]], effectsGBG[["min_shot_dist"]][["x"]][["min_shot_dist"]]))
-## change the names to something meaningful
-setnames(fitGBG, old = c("V1", "V2", "V3", "V4"), new = c("fit", "lower", "upper", "dist_to_shot"))
-## add a species column first half is GBG as that come first in the alphabet
-fitGBG$Species <- "Barnacle"
-
-
-
-##
-#### GWfG threshold model
-##
-
-## loop through each threshold value individual and save model AICc in ouput data set
-for(i in 2:length(dist_seq)) {
-  
-  message(i, " out of ", length(dist_seq))
-  
-  model <- lmer(Dist_difm ~ threshold1(min_shot_dist, dist_seq[i]) +  winter + TOD_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
-                data= GWfG_pairs,
-                REML=FALSE)
-  
-  outputGWfG[i,]<-c(dist_seq[i], MuMIn::AICc(model))
-  
-}
-
-outputGWfG
-plot(outputGWfG$model, outputGWfG$AIC)
-dist_seq[which.min(outputGWfG$AIC)] # threshold point in meters
-
-
-#### Plot output of the top threshold model
-## use lmerTest::lmer to get p-values using the Satterthwaite approximation
-top.modelGWfG <- lmerTest::lmer(Dist_difm ~ threshold1(min_shot_dist, 1350) + winter + TOD_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
-                                data=GWfG_pairs,
-                                REML=FALSE)
-summary(top.modelGWfG)
-
-
-## use the effects package to extract the fit for the first variable
-GWfG_mod_effects <- predictorEffects(top.modelGWfG, focal.levels = divisions)
-plot(GWfG_mod_effects[1])
-effectsGWfG <- GWfG_mod_effects[1]
-fitGWfG <- as.data.frame(cbind(effectsGWfG[["min_shot_dist"]][["fit"]], effectsGWfG[["min_shot_dist"]][["lower"]], 
-                               effectsGWfG[["min_shot_dist"]][["upper"]], effectsGWfG[["min_shot_dist"]][["x"]][["min_shot_dist"]]))
-## change the names to something meaningful
-setnames(fitGWfG, old = c("V1", "V2", "V3", "V4"), new = c("fit", "lower", "upper", "dist_to_shot"))
-## add a species column first half is GWfG as that come first in the alphabet
-fitGWfG$Species <- "White-fronted"
-
-
-
-#### Plot the output of the separate GBG and GWfG models on the same plot
-fit2 <- rbind(fitGBG, fitGWfG)
-## Now plot using ggplot
-ggplot() + 
-  geom_line(data=fit2, aes(x= dist_to_shot, y = fit, group = Species, colour = Species), size = 1.25)  +
-  geom_ribbon(data = fit2, aes(x=dist_to_shot, ymin = lower, ymax = upper, group = Species, colour = Species), 
-              alpha = 0.3, colour = NA, fill = "grey") + 
-  ylab("Difference in distance (m) [(t+1)-(t-1)]") + xlab("Distance to shot (m)") +
-  theme_bw() +
-  scale_colour_manual(values=c("#0072B2", "#D55E00")) +
-  xlim (0, 3000) +
-  theme(panel.grid.minor.y = element_blank(),
-        axis.title=element_text(size=14,), 
-        panel.grid.minor.x = element_blank())
-
-
-ggsave("Plots/Script 2) plots/Displacement [(t+1)-(t-1)].png", 
        width = 25, height = 15, units = "cm")
 
 
 
+
+
+
+# 
+# 
+# 
+# 
+# ##                                                                              
+# ## 10. Use threshold model to find distance were there is not shooting effect ##
+# ##  
+# 
+# ##
+# ## 10.1 Define functions for threshold model ##
+# ##
+# 
+# ## Single Threshold Model Function
+# ## This goes into the lmer model formula
+# threshold1<-function(age,T1)
+# {
+#   # T1 threshold for age
+#   #
+#   age.1 <- age.2 <- age
+#   age.1[age.1 > T1] <- T1
+#   age.2[age.2 <= T1] <- 0
+#   age.2[age.2 > T1] <- age.2[age.2 > T1] - T1
+#   cbind(age1.1 = age.1, age1.2 = age.2)
+# }
+# 
+# ## Double Threshold Model Function 
+# threshold2<-function(age,T1,T2)
+# {
+#   # T1 & T2 thresholds for age
+#   #
+#   age.1 <- age.2 <- age.3 <- age
+#   age.1[age.1 > T1] <- T1
+#   age.2[age.2 <= T1] <- 0
+#   age.2[age.2 <= T2 & age.2 > T1] <- age.2[age.2 <= T2 & age.2 > T1] - T1
+#   age.2[age.2 > T2] <- T2 - T1
+#   age.3[age.3 <= T2] <- 0
+#   age.3[age.3 > T2] <- age.3[age.3 > T2] - T2
+#   cbind(age2.1 = age.1, age2.2 = age.2, age2.3 = age.3)
+# }
+# 
+# # Make empty outputs to store model AICs
+# summary(final_pairs4$min_shot_dist)
+# output <- data.frame(model=as.numeric(), AIC=numeric()) # This is for single threshold model 
+# 
+# ## Pick which data sets I want to put into the models
+# Consec_pair <- dplyr::filter(final_pairs4, control == "Shoot_T-1")
+# Consec_pair <- dplyr::filter(Consec_pair, is.na(species) == F) # removes any rows were the data for the shooting event is missing
+# Gap_pair <- dplyr::filter(final_pairs4, control == "T-1_T+1")
+# Gap_pair <- dplyr::filter(Gap_pair, is.na(species) == F) # removes any rows were the data for the shooting event is missing
+# 
+# 
+# 
+# ##
+# ## 11.1: Option 1: model both species together, forcing them to have same threshold ##
+# ##
+# 
+# ## create sequence of distances, each of which will be used as the break point in the model
+# dist_seq <- seq(0,3950,50)
+# 
+# ## create its own output data set 
+# output1 <- output
+# 
+# ## loop through each threshold value individual and save model AICc in output data set
+# ## List of possible predictors: species + TOD_sc + winter + from_nov1_sc + I(from_nov1_sc^2) + (1|Shoot_ID1) + (1|Tag_ID)
+# 
+# ## start at 2 as 1 is 0metres
+# for(i in 2:length(dist_seq)) {
+#   
+#   svMisc::progress(i, max.value = length(dist_seq))
+#   
+#   model <- lmer(Dist_difm ~ threshold1(min_shot_dist, dist_seq[i])*species + winter + TOD_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
+#                 data=Consec_pair,
+#                 REML=FALSE)
+#   
+#   output1[i,]<-c(dist_seq[i], MuMIn::AICc(model))
+#   
+# }
+# 
+# output1
+# plot(output1$model, output1$AIC)
+# dist_seq[which.min(output1$AIC)] ## threshold point in metres
+# 
+# 
+# #### Plot output of the top threshold model
+# top.model <- lmer(Dist_difm ~ threshold1(min_shot_dist, 1400)*species + winter + TOD_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
+#                   data=Consec_pair,
+#                   REML=FALSE)
+# 
+# ## use the effects package, and ggplot to plot the model predictions
+# ## first the effects for each predicitor
+# divisions <- 200
+# top_mod_effects <- predictorEffects(top.model, focal.levels = divisions)
+# model_performance(top.model)
+# 
+# ## now extract the fits for the first variable and bind them together
+# effects1 <- top_mod_effects[1]
+# fit1 <- as.data.frame(cbind(effects1[["min_shot_dist"]][["fit"]], effects1[["min_shot_dist"]][["lower"]], 
+#                             effects1[["min_shot_dist"]][["upper"]], effects1[["min_shot_dist"]][["x"]][["min_shot_dist"]]))
+# ## change the names to something meaningful
+# setnames(fit1, old = c("V1", "V2", "V3", "V4"), new = c("fit", "lower", "upper", "dist_to_shot"))
+# ## add a species column first half is GBG as that come first in the alphabet
+# fit1$Species <- NA
+# fit1$Species[1:divisions] <- "Barnacle"
+# fit1$Species[(divisions+1):(divisions*2)] <- "White-fronted"
+# 
+# ## Now plot using ggplot
+# ggplot() + 
+#   geom_line(data=fit1, aes(x= dist_to_shot, y = fit, group = Species, colour = Species), size = 1.25)  +
+#   geom_ribbon(data = fit1, aes(x=dist_to_shot, ymin = lower, ymax = upper, group = Species, colour = Species), 
+#               alpha = 0.3, colour = NA, fill = "grey") + 
+#   ylab("Difference in distance (m) [t-(t-1)]") + xlab("Distance to shot (m)") +
+#   theme_bw() +
+#   scale_colour_manual(values=c("#0072B2", "#D55E00")) +
+#   xlim (0, 3000) +
+#   theme(panel.grid.minor.y = element_blank(),
+#         axis.title=element_text(size=12,), 
+#         panel.grid.minor.x = element_blank())
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# #
+# ## 11.2 Option 2: model both species separately, Different thresholds ##
+# ##
+# 
+# ## create its own output data set 
+# outputGBG <- output
+# outputGWfG <- output
+# 
+# ## filter the data set for each species
+# GBG_pairs <- dplyr::filter(Consec_pair, species == "GBG")
+# GWfG_pairs <- dplyr::filter(Consec_pair, species == "GWfG")
+# 
+# 
+# ##
+# #### GBG threshold model
+# ##
+# 
+# ## re-assign as factor for random intercept fitting
+# GBG_pairs$Tag_ID <- as.factor(as.character(GBG_pairs$Tag_ID))
+# 
+# ## loop through each threshold value individual and save model AICc in ouput data set
+# for(i in 2:length(dist_seq)) {
+#   
+#   svMisc::progress(i, max.value = length(dist_seq))
+#   
+#   model <- lmer(Dist_difm ~ threshold1(min_shot_dist, dist_seq[i]) + winter + poly(TOD_sc,2) + (1|Shoot_ID1) + (1|Tag_ID), 
+#                 data= GBG_pairs,
+#                 REML=FALSE)
+#   
+#   outputGBG[i,]<-c(dist_seq[i], MuMIn::AICc(model))
+#   
+# }
+# 
+# #outputGBG
+# ggplot(data = outputGBG) + geom_point(aes(x= model, y= AIC)) +
+#   xlab("Distance to shot (m)") +
+#   theme_bw() +
+#   theme(panel.grid.minor.y = element_blank(),
+#         axis.title=element_text(size=12,), 
+#         panel.grid.minor.x = element_blank(), 
+#         panel.grid.major.y = element_blank())
+# 
+# ggsave("Plots/Script 2) plots/AIC GBG single threshold.png", 
+#        width = 20, height = 15, units = "cm")
+# dist_seq[which.min(outputGBG$AIC)] # threshold point in meters
+# 
+# 
+# #### Plot output of the top threshold model
+# top.modelGBG <- lmerTest::lmer(Dist_difm ~ threshold1(min_shot_dist, 1000) + + winter + poly(TOD_sc,2) + (1|Shoot_ID1) + (1|Tag_ID), 
+#                   data=GBG_pairs,
+#                   REML=FALSE)
+# summary(top.modelGBG)
+# 
+# 
+# 
+# ## use the effects package to extract the fit for the first variable
+# GBG_mod_effects <- predictorEffects(top.modelGBG, focal.levels = divisions)
+# plot(GBG_mod_effects[1])
+# effectsGBG <- GBG_mod_effects[1]
+# fitGBG <- as.data.frame(cbind(effectsGBG[["min_shot_dist"]][["fit"]], effectsGBG[["min_shot_dist"]][["lower"]], 
+#                             effectsGBG[["min_shot_dist"]][["upper"]], effectsGBG[["min_shot_dist"]][["x"]][["min_shot_dist"]]))
+# ## change the names to something meaningful
+# setnames(fitGBG, old = c("V1", "V2", "V3", "V4"), new = c("fit", "lower", "upper", "dist_to_shot"))
+# ## add a species column first half is GBG as that come first in the alphabet
+# fitGBG$Species <- "Barnacle"
+# 
+# 
+# 
+# ##
+# #### GWfG threshold model
+# ##
+# 
+# ## re-assign as factor for random intercept fitting
+# GWfG_pairs$Tag_ID <- as.factor(as.character(GWfG_pairs$Tag_ID))
+# 
+# ## remove one big value, fine to do this as i think it flew off Islay and we are only interested in movements within Islay
+# GWfG_pairs <- GWfG_pairs %>%  filter(Dist_difm > -10000)
+# 
+# # GWFGmean <- mean(GWfG_pairs$min_shot_dist)
+# # GWfGSd <- sd(GWfG_pairs$min_shot_dist)
+# # GWfG_pairs$min_shot_dist_scale <- (GWfG_pairs$min_shot_dist-GWFGmean)/GWfGSd
+# 
+# ## loop through each threshold value individual and save model AICc in ouput data set
+# for(i in 2:length(dist_seq)) {
+#   
+#   svMisc::progress(i, max.value = length(dist_seq))
+#   
+#   model <- lmer(Dist_difm ~ threshold1(min_shot_dist, dist_seq[i]) + winter + poly(TOD_sc,2) + (1|Shoot_ID1) + (1|Tag_ID), 
+#                 data= GWfG_pairs,
+#                 REML=FALSE)
+#   
+#   outputGWfG[i,]<-c(dist_seq[i], MuMIn::AICc(model))
+#   
+# }
+# 
+# outputGWfG
+# ggplot(data = outputGWfG) + geom_point(aes(x= model, y= AIC)) +
+#   xlab("Distance to shot (m)") +
+#   theme_bw() +
+#   theme(panel.grid.minor.y = element_blank(),
+#         axis.title=element_text(size=12,), 
+#         panel.grid.minor.x = element_blank(), 
+#         panel.grid.major.y = element_blank())
+# 
+# ggsave("Plots/Script 2) plots/AIC GWfG single threshold.png", 
+#        width = 20, height = 15, units = "cm")
+# dist_seq[which.min(outputGWfG$AIC)] # threshold point in meters
+# 
+# 
+# #### Plot output of the top threshold model
+# ## use lmerTest::lmer to get p-values using the Satterthwaite approximation
+# top.modelGWfG <- lmerTest::lmer(Dist_difm ~ threshold1(min_shot_dist, 2300) + winter + TOD_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
+#                      data=GWfG_pairs,
+#                      REML=FALSE)
+# summary(top.modelGWfG)
+# drop1(top.modelGWfG)
+# confint(top.modelGWfG)
+# MuMIn::r.squaredGLMM(top.modelGWfG)
+# 
+# 
+# ## use the effects package to extract the fit for the first variable
+# GWfG_mod_effects <- predictorEffects(top.modelGWfG, focal.levels = divisions)
+# plot(GWfG_mod_effects[1])
+# effectsGWfG <- GWfG_mod_effects[1]
+# fitGWfG <- as.data.frame(cbind(effectsGWfG[["min_shot_dist"]][["fit"]], effectsGWfG[["min_shot_dist"]][["lower"]], 
+#                               effectsGWfG[["min_shot_dist"]][["upper"]], effectsGWfG[["min_shot_dist"]][["x"]][["min_shot_dist"]]))
+# ## change the names to something meaningful
+# setnames(fitGWfG, old = c("V1", "V2", "V3", "V4"), new = c("fit", "lower", "upper", "dist_to_shot"))
+# ## add a species column first half is GWfG as that come first in the alphabet
+# fitGWfG$Species <- "White-fronted"
+# 
+# 
+# 
+# #### Plot the output of the separate GBG and GWfG models on the same plot
+# fit2 <- rbind(fitGBG, fitGWfG)
+# ## Now plot using ggplot
+# ggplot() + 
+#   geom_line(data=fit2, aes(x= dist_to_shot, y = fit, group = Species, colour = Species), size = 1.25)  +
+#   geom_ribbon(data = fit2, aes(x=dist_to_shot, ymin = lower, ymax = upper, group = Species, colour = Species), 
+#               alpha = 0.3, colour = NA, fill = "grey") + 
+#   ylab("Difference in distance (m) [t-(t-1)]") + xlab("Distance to shot (m)") +
+#   theme_bw() +
+#   scale_colour_manual(values=c("#0072B2", "#D55E00")) +
+#   xlim (0, 3000) +
+#   theme(panel.grid.minor.y = element_blank(),
+#         axis.title=element_text(size=12,), 
+#         panel.grid.minor.x = element_blank())
+# 
+# 
+# 
+# 
+# 
+# 
+# ##
+# ## 11.3 Option 3: model GBGs separately, two thresholds points ##
+# ##
+# 
+# ## create thresholds to trial
+# dist_seq2 <- expand.grid(t1 = seq(50,3950,50), t2 =seq(50,3950,50))
+# dist_seq2 <- filter(dist_seq2, t1 < t2)
+# 
+# ## create its own output data set 
+# outputGBG2 <- output
+# 
+# ## filter the data set for each species
+# GBG_pairs2 <- filter(Consec_pair, species == "GBG")
+# 
+# ## re-assign as factor for random intercept fitting
+# GBG_pairs2$Tag_ID <- as.factor(as.character(GBG_pairs2$Tag_ID))
+# 
+# 
+# ##
+# #### GBG double threshold model
+# ##
+# 
+# ## loop through each threshold value individual and save model AICc in ouput data set
+# for(i in 2:nrow(dist_seq2)) {
+#   
+#   svMisc::progress(i, max.value = nrow(dist_seq2))
+#   
+#   model <- lmer(Dist_difm ~ threshold2(min_shot_dist, dist_seq2$t1[i], dist_seq2$t2[i]) + + winter + poly(TOD_sc,2) + (1|Shoot_ID1) + (1|Tag_ID), 
+#                 data= GBG_pairs2,
+#                 REML=FALSE)
+#   
+#   outputGBG2[i,]<-c(paste0(dist_seq2$t1[i], " & ", dist_seq2$t2[i]), MuMIn::AICc(model))
+#   
+# }
+# 
+# outputGBG2
+# plot(outputGBG2$model, outputGBG2$AIC)
+# dist_seq2[which.min(outputGBG2$AIC),] # threshold point in meters
+# 
+# 
+# #### Plot output of the top threshold model
+# top.modelGBG2 <- lmerTest::lmer(Dist_difm ~ threshold2(min_shot_dist, 150, 1050) + winter + TOD_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
+#                                data=GBG_pairs2,
+#                                REML=FALSE)
+# summary(top.modelGBG2)
+# drop1(top.modelGBG2)
+# confint(top.modelGBG2)
+# MuMIn::r.squaredGLMM(top.modelGBG2)
+# 
+# 
+# ## use the effects package to extract the fit for the first variable
+# GBG_mod_effects2 <- predictorEffects(top.modelGBG2, focal.levels = divisions)
+# plot(GBG_mod_effects2[1])
+# effectsGBG2 <- GBG_mod_effects2[1]
+# fitGBG2 <- as.data.frame(cbind(effectsGBG2[["min_shot_dist"]][["fit"]], effectsGBG2[["min_shot_dist"]][["lower"]], 
+#                               effectsGBG2[["min_shot_dist"]][["upper"]], effectsGBG2[["min_shot_dist"]][["x"]][["min_shot_dist"]]))
+# ## change the names to something meaningful
+# setnames(fitGBG2, old = c("V1", "V2", "V3", "V4"), new = c("fit", "lower", "upper", "dist_to_shot"))
+# ## add a species column first half is GBG as that come first in the alphabet
+# fitGBG2$Species <- "Barnacle"
+# 
+# 
+# ggplot() + 
+#   geom_line(data=fitGBG2, aes(x= dist_to_shot, y = fit, colour = Species), size = 1.25)  +
+#   geom_ribbon(data = fitGBG2, aes(x=dist_to_shot, ymin = lower, ymax = upper), 
+#               alpha = 0.3, colour = NA, fill = "grey") + 
+#   ylab("Difference in distance (m) [t-(t-1)]") + xlab("Distance to shot (m)") +
+#   theme_bw() +
+#   scale_colour_manual(values=c("#0072B2")) +
+#   xlim (0, 3000) +
+#   theme(panel.grid.minor.y = element_blank(),
+#         axis.title=element_text(size=12,), 
+#         panel.grid.minor.x = element_blank())
+# 
+# 
+# ## Find the point the lower CI equals zero, going to use this as out cut off shor disturbed/undisturbed
+# top_mod_effects <- predictorEffects(top.modelGBG2, focal.levels = 10000)
+# lowerCI <- top_mod_effects[["min_shot_dist"]][["lower"]] ## lower CI estimates
+# Distances <- top_mod_effects[["min_shot_dist"]][["x"]][["min_shot_dist"]] ## distance from shot series
+# Distances[which.min(abs(lowerCI))] # distance were lower CI is closest to zero
+# 
+# 
+# ##
+# ## 11.4 Plot the best models for t and t-1 ##
+# ##
+# 
+# ## The best models were the single threshold model for GWfG and double threshold for GBG
+# Bestfits <- rbind(fitGBG2, fitGWfG) ##vreate dats set
+# 
+# Bestfits$Species <- ifelse(Bestfits$Species == "White-fronted", "GWfG", "GBG")
+# 
+# 
+# ggplot() + 
+#   geom_line(data=Bestfits, aes(x= dist_to_shot, y = fit, group = Species, colour = Species), size = 1.25)  +
+#   geom_ribbon(data = Bestfits, aes(x=dist_to_shot, ymin = lower, ymax = upper, group = Species, colour = Species), 
+#               alpha = 0.3, colour = NA, fill = "grey") + 
+#   ylab("Difference in distance (m) [t-(t-1)]") + xlab("Distance to shot (m)") +
+#   theme_bw() +
+#   scale_colour_manual(values=c("#0072B2", "#D55E00")) +
+#   xlim (0, 3000) +
+#   theme(panel.grid.minor.y = element_blank(),
+#         panel.grid.minor.x = element_blank(),
+#         axis.title=element_text(size=12,), 
+#         axis.text = element_text(size =14), 
+#         axis.title.x = element_text(size =16),
+#         axis.title.y = element_text(size =16), 
+#         strip.text.x = element_text(size =14), 
+#         legend.title = element_text(size =14),
+#         legend.text = element_text(size =14))
+# 
+# 
+# 
+# ggsave("Plots/Script 2) plots/Displacement [t-(t-1)] Distance version.png", 
+#         width = 25, height = 15, units = "cm")
+# 
+# 
+# 
+# 
+# 
+# ##
+# ## 11.5 Option 4: use t-1 and t+1 ##
+# ##
+# 
+# ## create its own output data set 
+# outputGBG <- output
+# outputGWfG <- output
+# 
+# ## filter the data set for each species
+# GBG_pairs <- filter(Gap_pair, species == "GBG")
+# GWfG_pairs <- filter(Gap_pair, species == "GWfG")
+# 
+# 
+# ##
+# #### GBG threshold model
+# ##
+# 
+# ## loop through each threshold value individual and save model AICc in ouput data set
+# for(i in 2:length(dist_seq)) {
+#   
+#   svMisc::progress(i, max.value = length(dist_seq))
+#   
+#   model <- lmer(Dist_difm ~ threshold1(min_shot_dist, dist_seq[i]) + winter + TOD_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
+#                 data= GBG_pairs,
+#                 REML=FALSE)
+#   
+#   outputGBG[i,]<-c(dist_seq[i], MuMIn::AICc(model))
+#   
+# }
+# 
+# outputGBG
+# plot(outputGBG$model, outputGBG$AIC)
+# dist_seq[which.min(outputGBG$AIC)] # threshold point in meters
+# 
+# 
+# #### Plot output of the top threshold model
+# top.modelGBG <- lmerTest::lmer(Dist_difm ~ threshold1(min_shot_dist, 400) + winter + TOD_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
+#                                data=GBG_pairs,
+#                                REML=FALSE)
+# summary(top.modelGBG)
+# 
+# 
+# ## use the effects package to extract the fit for the first variable
+# GBG_mod_effects <- predictorEffects(top.modelGBG, focal.levels = divisions)
+# plot(GBG_mod_effects[1])
+# effectsGBG <- GBG_mod_effects[1]
+# fitGBG <- as.data.frame(cbind(effectsGBG[["min_shot_dist"]][["fit"]], effectsGBG[["min_shot_dist"]][["lower"]], 
+#                               effectsGBG[["min_shot_dist"]][["upper"]], effectsGBG[["min_shot_dist"]][["x"]][["min_shot_dist"]]))
+# ## change the names to something meaningful
+# setnames(fitGBG, old = c("V1", "V2", "V3", "V4"), new = c("fit", "lower", "upper", "dist_to_shot"))
+# ## add a species column first half is GBG as that come first in the alphabet
+# fitGBG$Species <- "Barnacle"
+# 
+# 
+# 
+# ##
+# #### GWfG threshold model
+# ##
+# 
+# ## loop through each threshold value individual and save model AICc in ouput data set
+# for(i in 2:length(dist_seq)) {
+#   
+#   message(i, " out of ", length(dist_seq))
+#   
+#   model <- lmer(Dist_difm ~ threshold1(min_shot_dist, dist_seq[i]) +  winter + TOD_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
+#                 data= GWfG_pairs,
+#                 REML=FALSE)
+#   
+#   outputGWfG[i,]<-c(dist_seq[i], MuMIn::AICc(model))
+#   
+# }
+# 
+# outputGWfG
+# plot(outputGWfG$model, outputGWfG$AIC)
+# dist_seq[which.min(outputGWfG$AIC)] # threshold point in meters
+# 
+# 
+# #### Plot output of the top threshold model
+# ## use lmerTest::lmer to get p-values using the Satterthwaite approximation
+# top.modelGWfG <- lmerTest::lmer(Dist_difm ~ threshold1(min_shot_dist, 1350) + winter + TOD_sc + I(from_nov1_sc^2) + (1|Shoot_ID1), 
+#                                 data=GWfG_pairs,
+#                                 REML=FALSE)
+# summary(top.modelGWfG)
+# 
+# 
+# ## use the effects package to extract the fit for the first variable
+# GWfG_mod_effects <- predictorEffects(top.modelGWfG, focal.levels = divisions)
+# plot(GWfG_mod_effects[1])
+# effectsGWfG <- GWfG_mod_effects[1]
+# fitGWfG <- as.data.frame(cbind(effectsGWfG[["min_shot_dist"]][["fit"]], effectsGWfG[["min_shot_dist"]][["lower"]], 
+#                                effectsGWfG[["min_shot_dist"]][["upper"]], effectsGWfG[["min_shot_dist"]][["x"]][["min_shot_dist"]]))
+# ## change the names to something meaningful
+# setnames(fitGWfG, old = c("V1", "V2", "V3", "V4"), new = c("fit", "lower", "upper", "dist_to_shot"))
+# ## add a species column first half is GWfG as that come first in the alphabet
+# fitGWfG$Species <- "White-fronted"
+# 
+# 
+# 
+# #### Plot the output of the separate GBG and GWfG models on the same plot
+# fit2 <- rbind(fitGBG, fitGWfG)
+# ## Now plot using ggplot
+# ggplot() + 
+#   geom_line(data=fit2, aes(x= dist_to_shot, y = fit, group = Species, colour = Species), size = 1.25)  +
+#   geom_ribbon(data = fit2, aes(x=dist_to_shot, ymin = lower, ymax = upper, group = Species, colour = Species), 
+#               alpha = 0.3, colour = NA, fill = "grey") + 
+#   ylab("Difference in distance (m) [(t+1)-(t-1)]") + xlab("Distance to shot (m)") +
+#   theme_bw() +
+#   scale_colour_manual(values=c("#0072B2", "#D55E00")) +
+#   xlim (0, 3000) +
+#   theme(panel.grid.minor.y = element_blank(),
+#         axis.title=element_text(size=14,), 
+#         panel.grid.minor.x = element_blank())
+# 
+# 
+# ggsave("Plots/Script 2) plots/Displacement [(t+1)-(t-1)].png", 
+#        width = 25, height = 15, units = "cm")
+# 
+# 
+# 
+# 
