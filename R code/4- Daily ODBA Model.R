@@ -417,15 +417,21 @@ Shoot_proximity <- function(TD = TD, SD = SD, time_tresh = time_tresh, dist_thre
 }
 
 
-## run the function
-## Used 2000m as the distance threshold, they ony tested up to c1,500m in the Islay study and at this distance the effect became small
-## Added c500m on to allow a bit of wiggle room
-system.time(Prox_list <- Shoot_proximity(TD = winter_gps, SD = winter_shots_cent2, time_tresh = 60, dist_thresh = 797, field_crs = Field_centres))
+## run the function on the species separately
+## first split the species
+GBG_sub <- filter(winter_gps, species == "GBG")
+GWfG_sub <- filter(winter_gps, species == "GWfG")
+
+## run the function on both data sets with different thresholds
+Prox_list1 <- Shoot_proximity(TD = GBG_sub, SD = winter_shots_cent2, time_tresh = 60, dist_thresh = 1184, field_crs = Field_centres)
+Prox_list2 <- Shoot_proximity(TD = GWfG_sub, SD = winter_shots_cent2, time_tresh = 60, dist_thresh = 644, field_crs = Field_centres)
 
 ## bind the lists together into one data frame
-All_prox <- plyr::ldply(Prox_list)
+All_prox1 <- plyr::ldply(Prox_list1)
+All_prox2 <- plyr::ldply(Prox_list2)
 
-
+## Join the species lists
+All_prox <- rbind(All_prox1, All_prox2)
 
 
 #-----------------------------------------------------------------------#                                                                    
