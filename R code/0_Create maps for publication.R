@@ -5,10 +5,10 @@
 ## Create various maps for publication to show Islay location, habitat and roads
 ## Create Figure 1: map of Islay with RAMSAR and GBG roost sites marked and entire UK as inlay
 ## Create sup figure: map of Islay with all habitat shown
-## Create sup figure: map of Islay with only agricultural land and roads shown
+## Create sup figure: map of Islay with only agricultural land, saltmarsh and roads shown
 
 ## Load required packages
-pacman::p_load(tidyverse, data.table, sf, raster, ggspatial, cowplot, MetBrewer, ggnewscale)
+pacman::p_load(tidyverse, data.table, sf, raster, ggspatial, cowplot, MetBrewer, ggnewscale, terra)
 
 
 
@@ -45,8 +45,8 @@ st_crs(Land)
 
 ## Create the three GBG roosts sites in lat long
 Roost <- data.frame(Loc = c("Gruinart", "Bridgend", "Lagan"), 
-                     Lat = c(55.829241, 55.775400, 55.688561), 
-                     Long = c(-6.332374, -6.262273, -6.277231))
+                    Lat = c(55.829241, 55.775400, 55.688561), 
+                    Long = c(-6.332374, -6.262273, -6.277231))
 Roost <- st_as_sf(Roost, coords = c("Long", "Lat"), 
                   crs = 4326, agr = "constant")
 
@@ -99,21 +99,21 @@ unique(Habitat$value)
 ## classify the habitats
 Habitat <- Habitat %>% mutate(value = as.character(value),
                               Hab = fct_collapse(value,
-                                 #marine = c("13"),
-                                 #woodland = c("1", "2"), # move it in "other" as some woodland classified sites are mostly fields with areas of woodland inside/around (small fields)
-                                 freshwater = c("14"),
-                                 #urban = c("20", "21") # place in other
-                                 #saltmarsh = c("19"),
-                                 coastal_saltmarsh = c("15", "16", "17", "18", "19"),
-                                 other_grassland = c("7","10"),
-                                 improved_grassland = c("4"),
-                                 arable_hort  = c("3"),
-                                 bog = c("11"),
-                                 other = c("1","2","9", "20", "21", "13")))
+                                                 #marine = c("13"),
+                                                 #woodland = c("1", "2"), # move it in "other" as some woodland classified sites are mostly fields with areas of woodland inside/around (small fields)
+                                                 freshwater = c("14"),
+                                                 #urban = c("20", "21") # place in other
+                                                 #saltmarsh = c("19"),
+                                                 coastal_saltmarsh = c("15", "16", "17", "18", "19"),
+                                                 other_grassland = c("7","10"),
+                                                 improved_grassland = c("4"),
+                                                 arable_hort  = c("3"),
+                                                 bog = c("11"),
+                                                 other = c("1","2","9", "20", "21", "13")))
 
 ## Assign meaningful names
 Habitat$Hab <- dplyr::recode(Habitat$Hab, arable_hort = "Arable", bog = "Upland Bog", improved_grassland = "Improved grassland", 
-                                      other_grassland = "Other grassland", coastal_saltmarsh = "Saltmarsh & Coastal", freshwater = "Freshwater", other = "Other")
+                             other_grassland = "Other grassland", coastal_saltmarsh = "Saltmarsh & Coastal", freshwater = "Freshwater", other = "Other")
 
 ## check the habitats have the correct dates
 unique(Habitat$Hab)
@@ -121,27 +121,55 @@ unique(Habitat$Hab)
 
 
 ##-----------------------------------##
-#### 5. Create Figure 1: Islay Map ####
+#### 4. Create Figure 1: Islay Map ####
 ##-----------------------------------##
 
 ## get a three colour palette
-x <- met.brewer("Egypt", n = 3)
-x[1];x[2];x[3]
+x <- met.brewer("Egypt", n = 4)
+x[1];x[2];x[3];x[4]
+
+## Create a layer of just improved grassland
+## Read in the habitat raster again
+Land <- rast("Landcover Data/Islay landcover data/LandCov2018_Islay.grd")
+## Re-project the raster and the bounding box to lat/long
+LandR <- project(Land, crs(Islay), method = "near")
+IslayBBoxR <- st_transform(IslayBBox, crs = crs(Land))
+## crop the raster to exclude the  bit of Jura
+LandI <- mask(Land, IslayBBoxR)
+## check this worked
+plot(LandI)
+## Now turn all values that are not improved grassland (4) to nA
+values(LandI) <- ifelse(values(LandI)==4, 4, NA)
+## Now convert the raster to polygons for plotting and then convert to a sf object to plot
+LandIPoly <- as.polygons(LandI)
+plot(LandIPoly)
+LandIPoly <- st_as_sf(LandIPoly)
+
+
 
 ## create the map of Islay
 IslayMap <- ggplot() +
           # Add the coastline
           geom_sf(data = Islay, aes(geometry = geometry)) + 
+  
+
+          
+          # Add the Habitat data
+          geom_sf(data = LandIPoly, aes(geometry = geometry, fill = "#43b284"), colour = "#43b284", alpha = 0.8) +
+          scale_fill_manual(name = "Improved Grassland",
+                    values =c("#43b284"="#43b284"),
+                    labels = c("")) +
+          new_scale_fill() +
           
           # add other spatial objects
-          geom_sf(data = Ram, aes(geometry = geometry, fill = "#43b284"), alpha = 0.6) +
+          geom_sf(data = Ram, aes(geometry = geometry, fill = "#0f7ba2"), alpha = 0.6) +
           scale_fill_manual(name = "Nature Reserves",
-                            values =c("#43b284"="#43b284"),
+                            values =c("#0f7ba2"="#0f7ba2"),
                             labels = c("")) +
           
-          geom_sf(data = Road_cr, aes(geometry = geometry, colour = "#0f7ba2"), fill = NA, alpha = 0.8, size = 0.75) +
+          geom_sf(data = Road_cr, aes(geometry = geometry, colour = "#fab255"), fill = NA, alpha = 0.9, size = 0.9) +
           scale_colour_manual(name = "Public Roads",
-                            values =c("#0f7ba2"="#0f7ba2"),
+                            values =c("#fab255"="#fab255"),
                             labels = c("")) +
           new_scale_color() +
   
@@ -149,7 +177,7 @@ IslayMap <- ggplot() +
           scale_colour_manual(name = "GBG Roost Sites",
                               values =c("#dd5129"="#dd5129"),
                               labels = c("")) +
-                  
+
           # set the plot limits to add margin for inset
           coord_sf(xlim = c(-6.89, -6), 
                    ylim = c(55.55, 55.95), crs = 4326, expand = F) +
@@ -198,7 +226,7 @@ ggsave(filename = "Plots/Maps/Figure1_IslayMap.png",
 
 
 ##--------------------------##
-#### 6. Islay Habitat Map ####
+#### 5. Islay Habitat Map ####
 ##--------------------------##
 
 ## transform the roads and Islay coat to the same crs as the habitat map
@@ -258,7 +286,6 @@ ggsave(filename = "Plots/Maps/SupFigure_IslayHabitats.png",
           
           
           
-
 ##---------------------------------##
 #### 6. Islay Habitat & Road Map ####
 ##---------------------------------##
@@ -278,11 +305,11 @@ RoadHabs <- ggplot() +
   # Add the Habitat data
   geom_raster(data=Habitat2, aes(x=x, y=y, fill=Hab), alpha=1) + 
   scale_fill_manual(name = "Habitat",
-                      values =c("Improved grassland" = "#f9d14a",
-                                "Saltmarsh & Coastal" = "#88a0dc"),
-                      labels = c("Improved grassland",
-                                 "Saltmarsh & Coastal"), na.value = "transparent") +
-
+                    values =c("Improved grassland" = "#f9d14a",
+                              "Saltmarsh & Coastal" = "#88a0dc"),
+                    labels = c("Improved grassland",
+                               "Saltmarsh & Coastal"), na.value = "transparent") +
+  
   ## Add the coastline
   geom_sf(data = Islay_tr, aes(geometry = geometry), fill = NA) +
   geom_sf(data = Road_tr, aes(geometry = geometry, colour = "black"), fill = NA, alpha = 0.6, size = 0.7) +
