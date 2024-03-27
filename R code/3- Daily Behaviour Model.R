@@ -470,15 +470,15 @@ plot(top_mod_effects)
 ##
 
 ## Compare models to determine effect of shooting variable
-Stat_modInt <- glmmTMB(formula = cbind(Stat, Not_Stat) ~ shot*DayNight + winter + poly(from_nov1,2) + 
+Stat_modInt <- glmmTMB(formula = cbind(Stat, Not_Stat) ~ shot*DayNight + (1|winter) + poly(from_nov1,2) + 
                                                          (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                         data = BehSum3,
                         family = betabinomial)
-Stat_modfix <- glmmTMB(formula = cbind(Stat, Not_Stat) ~ shot + DayNight + winter + poly(from_nov1,2) + 
+Stat_modfix <- glmmTMB(formula = cbind(Stat, Not_Stat) ~ shot + DayNight + (1|winter) + poly(from_nov1,2) + 
                                                          (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                        data = BehSum3,
                        family = betabinomial)
-Stat_modNo <- glmmTMB(formula = cbind(Stat, Not_Stat) ~ DayNight + winter + poly(from_nov1,2) + 
+Stat_modNo <- glmmTMB(formula = cbind(Stat, Not_Stat) ~ DayNight + (1|winter) + poly(from_nov1,2) + 
                                                         (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                        data = BehSum3,
                        family = betabinomial)
@@ -488,7 +488,7 @@ AIC(Stat_modInt, Stat_modfix, Stat_modNo)
 summary(Stat_modNo)
 drop1(Stat_mod, test = "Chi")
 emmeans::emmeans(Stat_mod, ~shot*DayNight, type = "response")
-confint(Stat_mod)
+confint(Stat_modInt)[1:10,]
 
 
 ## Check model performance and assumptions
@@ -574,20 +574,20 @@ ggplot() +
 hist(sqrt(BehSum2$Flight))
 BehSum3$DayNight <- relevel(BehSum3$DayNight, "day")
 
-Flight_modInt <- glmmTMB(formula = cbind(Flight, Not_Flight) ~ shot*DayNight + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
+Flight_modInt <- glmmTMB(formula = cbind(Flight, Not_Flight) ~ shot*DayNight + (1|winter) + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                     data = BehSum3,
                     family = betabinomial)
-Flight_modFix <- glmmTMB(formula = cbind(Flight, Not_Flight) ~ shot + DayNight + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
+Flight_modFix <- glmmTMB(formula = cbind(Flight, Not_Flight) ~ shot + DayNight + (1|winter) + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                          data = BehSum3,
                          family = betabinomial)
-Flight_modNo <- glmmTMB(formula = cbind(Flight, Not_Flight) ~ DayNight + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
+Flight_modNo <- glmmTMB(formula = cbind(Flight, Not_Flight) ~ DayNight + (1|winter) + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                          data = BehSum3,
                          family = betabinomial)
 
 AIC(Flight_modInt, Flight_modFix, Flight_modNo)
 summary(Flight_modInt)
 drop1(Flight_modNo, test = "Chi")
-confint(Flight_modInt)
+confint(Flight_modFix)[1:10,]
 
 ## Check model performance and assumptions
 #model_performance(Flight_mod)
@@ -675,21 +675,21 @@ ggplot() +
 ## When day was classified in between sunrise and sunset the was significantly less feeding at night following shooting in the day, with no effect on day time feeding
 
 hist(sqrt(BehSum2$Graze))
-BehSum3$DayNight <- relevel(BehSum3$DayNight, "night")
-Graze_modInt <- glmmTMB(formula = cbind(Graze, Not_Graze) ~ shot*DayNight + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
+
+Graze_modInt <- glmmTMB(formula = cbind(Graze, Not_Graze) ~ shot*DayNight + (1|winter) + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                       data = BehSum3,
                       family = betabinomial)
-Graze_modFix <- glmmTMB(formula = cbind(Graze, Not_Graze) ~ shot + DayNight + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
+Graze_modFix <- glmmTMB(formula = cbind(Graze, Not_Graze) ~ shot + DayNight + (1|winter) + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                      data = BehSum3,
                      family = betabinomial)
-Graze_modNo <- glmmTMB(formula = cbind(Graze, Not_Graze) ~ DayNight + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
+Graze_modNo <- glmmTMB(formula = cbind(Graze, Not_Graze) ~ DayNight + (1|winter) + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                      data = BehSum3,
                      family = betabinomial)
 
 AIC(Graze_modInt, Graze_modFix, Graze_modNo)
 summary(Graze_modFix)
 drop1(Graze_modFix, test = "Chi")
-confint(Graze_modFix)
+confint(Graze_modInt)[1:10,]
 MuMIn::r.squaredGLMM(Graze_modFix)
 
 ## Check model performance and assumptions

@@ -605,29 +605,29 @@ ODBASum4 <- filter(ODBASum4, DayNight == "day")
 #--------------------------------------------------------------#
 
 ## Start with the interaction term but then gradually drop the terms and see which has the lowest AIC
-## 
-Mod_Int <-  glmmTMB(formula = Sum_ODBA ~ n_readings + shot*Species + Sex + winter + poly(from_nov1,2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
+
+Mod_Int <-  glmmTMB(formula = Sum_ODBA ~ n_readings + shot*Species + Sex + (1|winter) + poly(from_nov1,2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                    data = ODBASum4,
                    family = Gamma(link = "log"),
                    REML = FALSE,
                    control=glmmTMBControl(optimizer=optim,
                                           optArgs=list(method="BFGS")))
 
-Mod_NoInt <-  glmmTMB(formula = Sum_ODBA ~ n_readings + shot + Species + Sex + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
+Mod_NoInt <-  glmmTMB(formula = Sum_ODBA ~ n_readings + shot + Species + Sex + (1|winter) + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                    data = ODBASum4,
                    family = Gamma(link = "log"),
                    REML = FALSE,
                    control=glmmTMBControl(optimizer=optim,
                                           optArgs=list(method="BFGS")))
 
-Mod_Species <-  glmmTMB(formula = Sum_ODBA ~ n_readings + Species + Sex + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
+Mod_Species <-  glmmTMB(formula = Sum_ODBA ~ n_readings + Species + Sex + (1|winter) + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                    data = ODBASum4,
                    family = Gamma(link = "log"),
                    REML = FALSE,
                    control=glmmTMBControl(optimizer=optim,
                                           optArgs=list(method="BFGS")))
 
-Mod_Shot <-  glmmTMB(formula = Sum_ODBA ~ n_readings + shot + Sex + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
+Mod_Shot <-  glmmTMB(formula = Sum_ODBA ~ n_readings + shot + Sex + (1|winter) + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                       data = ODBASum4,
                       family = Gamma(link = "log"),
   
@@ -635,7 +635,7 @@ Mod_Shot <-  glmmTMB(formula = Sum_ODBA ~ n_readings + shot + Sex + winter + pol
                       control=glmmTMBControl(optimizer=optim,
                                              optArgs=list(method="BFGS")))
 
-Mod_None <-  glmmTMB(formula = Sum_ODBA ~ n_readings + Sex + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
+Mod_None <-  glmmTMB(formula = Sum_ODBA ~ n_readings + Sex + (1|winter) + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
                    data = ODBASum4,
                    family = Gamma(link = "log"),
                    REML = FALSE,
@@ -647,7 +647,7 @@ AIC(Mod_Int, Mod_NoInt, Mod_Species, Mod_Shot, Mod_None)
 
 ## Now get the estimates from the main mode
 summary(Mod_None) # quick summary
-confint(Mod_None) #confidence intervals
+confint(Mod_None)[1:10,] #confidence intervals
 MuMIn::r.squaredGLMM(Mod_None)
 confint(Mod_Int)
 
