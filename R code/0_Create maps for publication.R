@@ -72,7 +72,6 @@ Road_cr <- st_intersection(IslayBBox, Road_cr)
 ggplot() +geom_sf(data = Road_cr, aes(geometry = geometry)) + theme_light()
 
 ## Re-project the raster to lat/long
-LandR <- projectRaster(Land, crs = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0", method = "ngb")
 IslayBBoxR <- st_transform(IslayBBox, crs = crs(Land))
 ## crop the raster to exlclude the  bit of Jura
 LandI <- mask(Land, IslayBBoxR)
