@@ -34,7 +34,7 @@ library(glmmTMB)
 Islay_orn_behav <- read_rds("Biologging Data/Script3_BiologgingData.RDS")
 
 ## Read in a data sets that contains all the instances that birds were close spatially and temporally to a shooting event
-## while the device was collecting accelerometer data. This can be used to wokr ot which days birds were disturbed on
+## while the device was collecting accelerometer data. This can be used to work out which days birds were disturbed on
 All_prox <- read_rds("Biologging Data/Script3_ShootingProximity.RDS") %>% select(-geometry)
 
 
