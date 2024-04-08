@@ -1,7 +1,16 @@
+##---------------------------------------------------##
 ## Luke Ozsanlav-Harris
-## 21/04/22
+## Created: 21/04/22
 
-## Compare behavior days that are ans aren't shot at using classified acc data from Ornitela tags
+## Aim: 
+## Compare behavior on days where individuals are disturbed by shooting vs
+## not disturbed by shooting during the day. 
+##
+## Prediction 4: 
+## shooting disturbance will increase flight as individuals are displaced, 
+## increase compensatory feeding and increase vigilance in response to other stimuli post shooting. 
+
+##---------------------------------------------------##
 
 ## Packages required
 library(tidyverse)
@@ -9,11 +18,7 @@ library(lubridate)
 library(data.table)
 library(zoo)
 library(suncalc)
-library(geosphere)
-library(sf)
-library(lme4)
 library(DHARMa)
-library(MuMIn)
 library(effects)
 library(performance)
 library(glmmTMB)
@@ -21,250 +26,22 @@ library(glmmTMB)
 
 
 
-##
-#### 1. Read in data sets ####
-##
-
-##
-#### 1.1 Read in classified ACC data ####
+##                                                                     
+#### 1. Read in the data sets ####
 ##
 
-## Data Cleaning, extracting just the GPS data
-orn_behav <- readRDS("tracking data/Classified_ACC.RDS")
-table(orn_behav$device_id)
+## Read in the classified accelerometer data set from Islay, Scotland
+Islay_orn_behav <- read_rds("Biologging Data/Script3_BiologgingData.RDS")
 
-## read in meta data so i can just keep the Scotland birds
-Meta <- fread("MetaData/Tagged bird summary data new.csv")
-Meta <- filter(Meta, Ringing.location %in% c("ISLA", "WEST", "LOKE", "DYFI", "KINT") | S.N == 17795)
-
-## filter the gps data for the device ids left
-orn_behav <-filter(orn_behav, device_id %in% unique(Meta$S.N))
-
-## parse timestamp
-orn_behav$UTC_datetime <- ymd_hms(orn_behav$UTC_datetime)
-
-##Check for duplicated observations (ones with same lat, long, timestamp, and device ID)
-ind <- orn_behav %>% 
-       dplyr::select(UTC_datetime, device_id) %>%
-       duplicated()
-sum(ind)
-orn_behav <- orn_behav %>% filter(!ind)
-
-
-## Streamline the dataset for a first pass, first just have subset of the columns
-setnames(orn_behav, old = "device_id", new = "Tag_ID")
-
-## Now filter for the winter, create a year day column first
-orn_behav$year_day <- yday(orn_behav$UTC_datetime)
-winter_orn_behav <- filter(orn_behav, year_day >= 305 | year_day <= 92)
-table(winter_orn_behav$Tag_ID)
-
-
-
-
-##
-#### 1.2 Read in Islay winter GPS data ####
-##
-
-GPS_data <- readRDS("Derived data/All_winter_GPS_with_habitat.RDS")
-
-## only use the GPS data from birds with ACC data
-ACC_tags <- unique(winter_orn_behav$Tag_ID)
-GPS_set <- filter(GPS_data, Tag_ID %in% ACC_tags)
-
-## give each fix its own unique ID number
-GPS_set$ID <- 1:nrow(GPS_set)
-
-
-
-
-##                                                 
-#### 1.3 Read in shooting data and field boundaries ####
-##                                                 
-
-## read in the shooting logs
-Logs <- fread("Shooting logs/All_logs_cleaned.csv")
-
-## create a timestamp column for the shooting logs 
-## think the ones that fail to parse are the ones were the time is missing and it is just a date
-Logs$timestamp <- ymd_hms(paste0(Logs$Date_Cl, " ", Logs$Time_Cl))
-
-## Now filter the logs for the same time period as the tracking data
-winter_logs <- filter(Logs, timestamp > min(GPS_data$UTC_datetime) & timestamp < max(GPS_data$UTC_datetime))
-
-## Now filter out just the shooting events
-winter_shots <- filter(winter_logs, Shots_fired_Cl > 0)
-
-
-## read in the shapefiles of the Islay field boundaries
-Fields <- st_read(dsn = "Landcover Data/88090_ISLAY_GMS_FIELD_BOUNDARY",
-                  layer = "AS_ISLAY_GMS_FIELD_BOUNDARY")
-st_crs(Fields)
-
-## remove any duplicates in the field data
-ind3 <- duplicated(Fields$FIELD_ID)
-sum(ind3) 
-Fields <- Fields %>% filter(!ind3)
-
-
-
-
-##                                                   
-#### 2. Combine shooting data and spatial field data ####
-##                                                   
-
-## calculate the centroid of each field
-Field_centres <- st_centroid(Fields)
-
-## now create a data set with the shooting events but where each one has the center for that field
-setnames(winter_shots, old = "Field_code_Cl", new = "FIELD_ID")
-winter_shots_cent <- left_join(winter_shots, Field_centres, by = "FIELD_ID")
-
-## for now filter out the shooting events were we don't know the field code
-winter_shots_cent2 <- filter(winter_shots_cent, is.na(SHAPE_LEN)==F)
-
-## Give each shooting event a unique ID number
-winter_shots_cent2$shot_ID <- 1:nrow(winter_shots_cent2)
-
-## Make winter_shots_cent2 an sf object again
-winter_shots_cent_sf <- st_as_sf(winter_shots_cent2)
-winter_shots_cent_sf <- st_transform(winter_shots_cent_sf, crs = st_crs(Field_centres))
-
-
-
-
-##
-#### 3. Subset ACC data to just the extent of Islay ####
-##
-
-## The GPS_set data set contains just GPS data from the winter on Islay
-## Therefore if i restrict the ACC data to the same tag periods
-## then i can constrain the ACC data to just come from Islay winter
-
-## Add a tag date column to both data sets
-GPS_set$tag_date <- paste0(GPS_set$Tag_ID, "_", as.Date(GPS_set$UTC_datetime))
-winter_orn_behav$tag_date <- paste0(winter_orn_behav$Tag_ID, "_", as.Date(winter_orn_behav$UTC_datetime))
-
-## Now filter out only the tag dates in the GPS data set
-UnQs <- unique(GPS_set$tag_date)
-Islay_orn_behav <- filter(winter_orn_behav, tag_date %in% UnQs)
-
-
-
-
-##                                                   
-#### 4. Label fixes associated with each shooting event ####
-##                                                     
-
-## Define function that converts timestamp immediately before shooting event the smallest value
-## y needs to be the timestamps from the tracking data and x is just a single value from the shooting data sequence
-difftime2 <- function(x=x, y=y){
-  
-  time_difs <- difftime(y, x, units='mins')*-1
-  time_difs[time_difs<0] <- 1000000000
-  return(as.vector(time_difs))
-}
-
-## Define function that will loop through each tag and find the nearest fix before each shooting event while the tag was active
-## The fix prior to the shooting event has to be within a certain spatial and temporal buffer to the shooting event
-## TD = tracking data. Need tag ID (Tag_ID), lat/long (Longitude/Latitude), timestamp (UTC_datetime) and unique ID for each for row (ID)
-## SD = the shooting data. Need the time of the shot (timestamp), the field center (as an sf geometry) and unique ID for each for row (shot_ID)
-## time_thresh = the max time in minutes that a fix can be before a shooting event
-## dist_thresh = the max distance in meters the fix before a shooting event can be from the location of the shooting event
-## field_crs = an sf object that has the crs of the field centers in SD
-
-Shoot_proximity <- function(TD = TD, SD = SD, time_tresh = time_tresh, dist_thresh = dist_thresh, field_crs = field_crs){
-  
-  ##  make sure that the data set is ordered by time
-  TD <- TD[order(TD$UTC_datetime),] 
-  
-  ## breakdown to datasets per bird
-  unid <- unique(TD$Tag_ID) # list of unique tag IDs
-  nrid <- length(unid) # number of unique birds
-  
-  ## Create lists to put each tag ID in
-  Prox_list <- vector(mode = "list", length = nrid)
-  
-  ## Loop through each tag
-  for (i in 1:nrid) { ## ** CHANGE 15 BACK TO nrid **###
-    
-    message("Tag ", i, " out of ", nrid)
-    
-    
-    ## DATA PREP ##
-    ## filter out each tag one at a time
-    Dtemp <- TD[TD$Tag_ID == unid[i],]
-    
-    ## create sequence of shooting data while the tag was active
-    Start_time <- min(Dtemp$UTC_datetime)
-    End_time <- max(Dtemp$UTC_datetime)
-    SD_sub <- filter(SD , timestamp > Start_time, timestamp < End_time)
-    shootseq <- SD_sub$timestamp
-    
-    if(length(shootseq)==0){next}
-    
-    
-    ## FINDING NEAREST PRIOR FIX ##
-    # find the first fix before the shooting event
-    idx = sapply(shootseq, function(x) which.min(difftime2(y = Dtemp$UTC_datetime, x = x)))
-    
-    ## combine these fixes immediately before the shooting event with the shooting data
-    aa <- Dtemp[idx,]
-    bb <- cbind(aa , SD_sub)
-    
-    ##** COULD POTENTIALLY TAKE THIS SECTION OUT OF THE LOOP **##  
-    
-    ## CALCUALTE TIME DIFFERENCE AND DISTANCE ##
-    ## calculate time differences between fix and shooting event
-    bb$time_dif <- as.duration(ymd_hms(bb$timestamp) %--% ymd_hms(bb$UTC_datetime))
-    bb$time_dif <- as.numeric(bb$time_dif, "minutes")
-    
-    ## Now calculate distances between the fix and the shooting event
-    ## Make the fixes an sf object
-    gps_sf <- st_as_sf(aa, coords = c("Longitude", "Latitude"), 
-                       crs = 4326, agr = "constant")
-    ## now convert to the same crs as the field data
-    gps_sf <- st_transform(gps_sf, crs = st_crs(field_crs))
-    
-    ## make the shooting events an sf object
-    shootseq_sf <- st_as_sf(SD_sub)
-    shootseq_sf <- st_transform(shootseq_sf, crs = st_crs(field_crs))
-    
-    ## calculate the distance between the two sets of points
-    distances <- st_distance(gps_sf, shootseq_sf, by_element = TRUE)
-    
-    ## put the distances back into the shooting proximity data set
-    bb$dist_to_shot <- as.numeric(distances)
-    
-    
-    ## RULES TO KEEP FIXES IN SPATIO TEMPORAL BUFFER ##
-    ## Remove any fixes that were greater then 120 before the shooting event or were after the shooting event
-    bb2 <- filter(bb, time_dif <= 0, time_dif >= -time_tresh)
-    
-    ## Remove any fixes that were greater than a certain number of meters from the shooting event
-    bb3 <- filter(bb2, dist_to_shot < dist_thresh)
-    
-    ## Put this data set into a list that was initialized outside of the loop
-    Prox_list[[i]] <- bb3
-    
-  }
-  Prox_list
-}
-
-
-## run the function
-## Used 2000m as the distance threshold, they ony tested up to c1,500m in the Islay study and at this distance the effect became small
-## Added c500m on to allow a bit of wiggle room
-system.time(Prox_list <- Shoot_proximity(TD = GPS_set, SD = winter_shots_cent2, time_tresh = 60, dist_thresh = 644, field_crs = Field_centres))
-
-## bind the lists together into one data frame
-All_prox <- plyr::ldply(Prox_list)
+## Read in a data sets that contains all the instances that birds were close spatially and temporally to a shooting event
+## while the device was collecting accelerometer data. This can be used to wokr ot which days birds were disturbed on
+All_prox <- read_rds("Biologging Data/Script3_ShootingProximity.RDS") %>% select(-geometry)
 
 
 
 
 ##                                                                     
-#### 5. Summarize on what days and how many times birds were shot at ####
+#### 2. Summarize on what days and how many times birds were shot at ####
 ##                                                                     
 
 ## create a date column for the grouping
@@ -275,6 +52,7 @@ All_prox$dummy <- 1
 
 ## now summarise the  number of shooting events by each tag day
 DistSum <- All_prox %>% 
+           as.data.frame() %>% 
            group_by(date, Tag_ID) %>% 
            summarise(n_shot = sum(dummy))
 
@@ -282,7 +60,7 @@ DistSum <- All_prox %>%
 
 
 ##
-#### 6. Summarize daily behavior ####
+#### 3. Summarize daily behavior ####
 ##
 
 ## First label times as either day or night
@@ -330,7 +108,7 @@ BehSum <- Islay_orn_behav2 %>%
 
 
 ##
-#### 7. Add on number of shooing events to the dataset ####
+#### 4. Add on number of shooing events to the dataset ####
 ##
 
 ## join number of shots and daily behavioral summary
@@ -345,7 +123,7 @@ BehSum2$n_shot <- ifelse(is.na(BehSum2$n_shot)==T, 0, BehSum2$n_shot)
 
 
 ##
-#### 8. Model the proportion of time spent of certain behaviors varies ####
+#### 5. Model the proportion of time spent of certain behaviors varies ####
 ##
 
 ## Add extra columns to put in to the model
@@ -375,14 +153,11 @@ BehSum2$Tag_ID <- as.factor(BehSum2$Tag_ID)
 BehSum2$shot <- as.factor(BehSum2$shot)
 BehSum2$from_nov1Factor <- as.factor(BehSum2$from_nov1)
 
-BehSum2$obs <- 1:nrow(BehSum2)
-BehSum3 <- filter(BehSum2, DayNight == "day")
-
 
 
 
 ##
-#### 8.0 Minimum data requirement checks ####
+#### 6. Minimum data requirement checks ####
 ##
 
 ## remove data points based on whether they had a certain number of data points per day
@@ -410,63 +185,10 @@ BehSum3 <- filter(BehSum3, !from_nov1 == maxNov1)
 
 
 
-##
-#### 8.1 Walk model ####
-##
-
-## Shoot term not significant, model checks OKAY
-
-hist(sqrt(BehSum2$Walk))
-Walk_mod <- glmmTMB(formula = cbind(Walk, Not_Walk) ~ shot*DayNight + winter + poly(from_nov1, 2) + (1|Tag_ID) + ar1(from_nov1Factor + 0 | tag_winter),
-                     data = BehSum3,
-                     family = betabinomial)
-
-summary(Walk_mod)
-drop1(Walk_mod, test = "Chi")
-
-qqnorm(residuals(Walk_mod))
-
-## Check model performance and assumptions
-#model_performance(Walk_mod)
-#check_model(Walk_mod)
-
-
-## Model checks with DHARMa
-
-##---- use DHARMa to get QQ plot and resids vs fitted ----##
-Resids_Walk <- simulateResiduals(Walk_mod)
-plot(Resids_Walk)
-
-## plot reiduals vs predicted values
-par(mfrow=c(1,3))
-plotResiduals(Resids_Walk[["scaledResiduals"]], form = BehSum2$DayNight)
-plotResiduals(Resids_Walk[["scaledResiduals"]], form = BehSum2$shot)
-plotResiduals(Resids_Walk[["scaledResiduals"]], form = BehSum2$from_nov1)
-
-## Check dispersion
-testDispersion(Resids_Walk)
-testZeroInflation(Resids_Walk)
-
-## check autocorrelation
-New_resids <- recalculateResiduals(Resids_Walk, group = BehSum2$from_nov1)
-testTemporalAutocorrelation(Resids_Walk, time = unique(BehSum2$from_nov1))
-
-
-## create all candidate models using dredge (trace shows progress bar)
-dredge_set <- MuMIn::dredge(Walk_mod, trace = 2)
-nested_set <- subset(dredge_set, !MuMIn::nested(.), recalc.weights=T)
-delta6_set <- subset(nested_set, delta<=6, recalc.weights=T)
-
-
-## plot the model effects
-top_mod_effects <- predictorEffects(Walk_mod)
-plot(top_mod_effects)
-
-
 
 
 ##
-#### 8.2 Stat model ####
+#### 6.1 Stationary model ####
 ##
 
 ## Compare models to determine effect of shooting variable
@@ -483,17 +205,13 @@ Stat_modNo <- glmmTMB(formula = cbind(Stat, Not_Stat) ~ DayNight + (1|winter) + 
                        data = BehSum3,
                        family = betabinomial)
 
-
+## compare models
 AIC(Stat_modInt, Stat_modfix, Stat_modNo)
+
+## return model parameters and CIs
 summary(Stat_modNo)
-drop1(Stat_mod, test = "Chi")
 emmeans::emmeans(Stat_mod, ~shot*DayNight, type = "response")
 confint(Stat_modInt)[1:10,]
-
-
-## Check model performance and assumptions
-#model_performance(Stat_mod)
-#check_model(Stat_mod)
 
 
 ## Model checks with DHARMa
@@ -567,7 +285,7 @@ ggplot() +
 
 
 ##
-#### 8.3 Flight model ####
+#### 6.2 Flight model ####
 ##
 
 ## compare three models
@@ -584,15 +302,13 @@ Flight_modNo <- glmmTMB(formula = cbind(Flight, Not_Flight) ~ DayNight + (1|wint
                          data = BehSum3,
                          family = betabinomial)
 
+## Compare models
 AIC(Flight_modInt, Flight_modFix, Flight_modNo)
+
+## return model parameters and CIs
 summary(Flight_modInt)
 drop1(Flight_modNo, test = "Chi")
 confint(Flight_modFix)[1:10,]
-
-## Check model performance and assumptions
-#model_performance(Flight_mod)
-#check_model(Flight_mod)
-#check_model(Flight_mod, check ="reqq") # echek the random effects strucutre
 
 
 ## Model checks with DHARMa
@@ -667,7 +383,7 @@ ggplot() +
 
 
 ##
-#### 8.4 Graze model ####
+#### 6.3 Graze model ####
 ##
 
 ## Again removed the three rogue individuals like in the flight model make the model checks acceptable
@@ -686,15 +402,14 @@ Graze_modNo <- glmmTMB(formula = cbind(Graze, Not_Graze) ~ DayNight + (1|winter)
                      data = BehSum3,
                      family = betabinomial)
 
+## Compare models
 AIC(Graze_modInt, Graze_modFix, Graze_modNo)
+
+## return model parameters and CIs
 summary(Graze_modFix)
-drop1(Graze_modFix, test = "Chi")
 confint(Graze_modInt)[1:10,]
 MuMIn::r.squaredGLMM(Graze_modFix)
 
-## Check model performance and assumptions
-#model_performance(Graze_mod)
-#check_model(Graze_mod)
 
 
 ## Model checks with DHARMa
