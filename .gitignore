@@ -5,7 +5,5 @@
 
 # don't push
 /tracking data
-/Biologging Data
 
-# Note to self Biologging Data contains all the data needed to run my analysis
 # my code now does not rely on these folders Shooting logs, tracking data and Derived data
