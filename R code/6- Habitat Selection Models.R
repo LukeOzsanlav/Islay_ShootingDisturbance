@@ -23,8 +23,8 @@ pacman::p_load(tidyr,plyr,dplyr,zoo,data.table,move,ggplot2,patchwork, purrr,rea
 # This includes the full data used in final models. GPS fixes and specific farm locations have been removed/anonamized for GDPR. 
 
 ## 1.1 Between disturbance days data ----
-gbg_dd_dat <- read.csv("GBG_1200m_Between_Model_Data.csv") # GBG data
-gwf_dd_dat <- read.csv("GWFG_644m_Between_Model_Data.csv") # GWfG data
+gbg_dd_dat <- read.csv("Derived Data/GBG_1200m_Between_Model_Data.csv") # GBG data
+gwf_dd_dat <- read.csv("Derived Data/GWFG_644m_Between_Model_Data.csv") # GWfG data
 
 gbg_dd_dat$Species <- "GBG"
 gwf_dd_dat$Species <- "GWfG"
@@ -36,8 +36,8 @@ gwf_dd_dat$Winter <- as.factor(gwf_dd_dat$Winter)
 gwf_dd_dat$Disturbance_Day <- as.factor(gwf_dd_dat$Disturbance_Day)
 
 ## 1.2 Within disturbance days data ----
-gbg_PP <- read.csv("GBG_1200m_Within_Model_Data.csv")
-gwf_PP <- read.csv("GWFG_644m_Within_Model_Data.csv")
+gbg_PP <- read.csv("Derived Data/GBG_1200m_Within_Model_Data.csv")
+gwf_PP <- read.csv("Derived Data/GWFG_644m_Within_Model_Data.csv")
 
 #-------------------------------------------#
 ####  2. Between disturbance GBG models  ####

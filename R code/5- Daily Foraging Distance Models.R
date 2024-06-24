@@ -20,7 +20,7 @@ pacman::p_load(tidyr,plyr,dplyr,zoo,data.table,move,ggplot2,purrr,readr,
 #--------------------------------#
 ####  1. Read and prep data   ####
 #--------------------------------#
-distance_data <- read.csv("Foraging_Distance_Model_Data.csv")
+distance_data <- read.csv("Derived Data/Foraging_Distance_Model_Data.csv")
 distance_data$shoot_date <- as.factor(distance_data$shoot_date)
 distance_data$Tag_Winter <- as.factor(distance_data$Tag_Winter)
 distance_data$group_id <- as.numeric(distance_data$Tag_Winter)
