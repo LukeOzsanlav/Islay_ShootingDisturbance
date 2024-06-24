@@ -67,7 +67,7 @@ crs(gbg_trk)
 coordinates(gbg_trk) <- coordXY # extract coordinates from day data
 proj4string(gbg_trk) <- CRS("+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +units=m +no_defs")
 
-gbg_gps_shoot_field <- extract(islay.field, gbg_trk)
+gbg_gps_shoot_field <- raster::extract(islay.field, gbg_trk)
 gbg_gps_field <- cbind(gbg_shoot_day, gbg_gps_shoot_field)
 head(gbg_gps_field)
 
@@ -572,6 +572,7 @@ gwf_df_points_cleaned
 gwf_df_points_cleaned$Species <- "GWFG"
 min(gwf_df_points_cleaned$Total_fixes)
 max(gwf_df_points_cleaned$Total_fixes)
+
 
 
 
