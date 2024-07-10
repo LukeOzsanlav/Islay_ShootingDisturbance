@@ -15,7 +15,7 @@ The impact of shooting on time-activity budgets, movement and habitat selection 
 - `R code/3- Daily Behaviour Model.R`: Objective 4, modelling behavioral changes in response to shooting disturbance (GWfG only)
 - `R code/4- Daily ODBA Model.R`: Objective 5, modelling change in daily ODBA due to shooting disturbance
 - `R code/5- Daily Foraging Distance Models.R`: Objective 3, modelling changed in total daily movement in response to shooting disturbance
-- 'R code/6- Habitat Selection Models.R': Objective 6, modelling changes in habitat selection with shooting disturbance
+- `R code/6- Habitat Selection Models.R`: Objective 6, modelling changes in habitat selection with shooting disturbance
 
 ## Data description 📊
 - `Biologging Data/Script2_BiologgingData.RDS`: contains the general GPS locations for both species with the step lengths (measured in km) calculated from the precise locations. If the bird was within 4km of a shooting event when it occurred then the information for that shooting event and the distance of the bird to the shooting event is appended onto the GPS fix immediately prior to the shooting event.
@@ -30,10 +30,10 @@ The impact of shooting on time-activity budgets, movement and habitat selection 
 - `Landcover Data/Roads`: shapefile of all classified public roads in Scotland.
 - `MetaData/Tagged bird summary data new.csv` metadata file that contains the sex, ringing location and deployment dates of all tagged GWfG
 - `Shooting logs/All_logs_cleaned.csv`: All shooting logs from Islay containing the spatiotemporal information on each shooting event
-- 'Derived Data/Foraging_Distance_Model_Data.csv': contains the final data used for modelling daily movement distances of GBG and GWfG on Islay. This contains the total movement distances calculated from the initial subsampled GPS data.
-- 'Derived Data/GBG_1200m_Between_Model_Data.csv': contains the final real and pseudoabsence points used to analyse habitat selection by GBG between shooting and non-shooting disturbed days. Points are classified as shooting disturbed using distance for GBG derived from the broken stick model. 
--  'Derived Data/GWFG_644m_Between_Model_Data.csv': contains the final real and pseudoabsence points used to analyse habitat selection by GWfG between shooting and non-shooting disturbed days. Points are classified as shooting disturbed using distance for GWfG derived from the broken stick model.
-- 'Derived Data/GBG_1200m_Within_Model_Data.csv': contains the final real and pseudoabsence points used to analyse habitat selection by GBG within shooting disturbed days, comparing selection before and after disturbance. Points are classified as shooting disturbed using distance for GBG derived from the broken stick model.
-- 'Derived Data/GWFG_644m_Within_Model_Data.csv': contains the final real and pseudoabsence points used to analyse habitat selection by GWfG within shooting disturbed days, comparing selection before and after disturbance. Points are classified as shooting disturbed using distance for GWfG derived from the broken stick model.
+- `Derived Data/Foraging_Distance_Model_Data.csv`: contains the final data used for modelling daily movement distances of GBG and GWfG on Islay. This contains the total movement distances calculated from the initial subsampled GPS data.
+- `Derived Data/GBG_1200m_Between_Model_Data.csv`: contains the final real and pseudoabsence points used to analyse habitat selection by GBG between shooting and non-shooting disturbed days. Points are classified as shooting disturbed using distance for GBG derived from the broken stick model. 
+-  `Derived Data/GWFG_644m_Between_Model_Data.csv`: contains the final real and pseudoabsence points used to analyse habitat selection by GWfG between shooting and non-shooting disturbed days. Points are classified as shooting disturbed using distance for GWfG derived from the broken stick model.
+- `Derived Data/GBG_1200m_Within_Model_Data.csv`: contains the final real and pseudoabsence points used to analyse habitat selection by GBG within shooting disturbed days, comparing selection before and after disturbance. Points are classified as shooting disturbed using distance for GBG derived from the broken stick model.
+- `Derived Data/GWFG_644m_Within_Model_Data.csv`: contains the final real and pseudoabsence points used to analyse habitat selection by GWfG within shooting disturbed days, comparing selection before and after disturbance. Points are classified as shooting disturbed using distance for GWfG derived from the broken stick model.
 
 
