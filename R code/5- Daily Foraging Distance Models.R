@@ -13,7 +13,7 @@
 ## Packages required
 pacman::p_load(tidyr,plyr,dplyr,zoo,data.table,move,ggplot2,purrr,readr,
                lubridate,tidyverse,readr,amt,geosphere,sf,DHARMa,lme4,
-               MuMIn,effects,lattice,performance,MASS,glmmTMB,bbmle,emmeans, patchwork)
+               MuMIn,effects,lattice,performance,MASS,glmmTMB,bbmle,emmeans, patchwork, cowplot)
 
 
 
@@ -265,7 +265,7 @@ Fig_4a <- ggplot(df_dist_top, aes(indiv_dist, fit))+
   geom_line(aes(colour = Disturbance), size = 1)+
   geom_ribbon(aes(ymin=lower, ymax=upper, fill = Disturbance), alpha = 0.3) +
   #scale_colour_manual(values = c("#44AA99", "#DDCC77", "#999933", "#117733", "#CC6677", "#882255", "#AA4499")) +
-  labs(x = "Cumulative shooting experience", y = "Daily dsitance travelled (km)", colour = "Disturbance Day", fill = "Disturbance Day")+
+  labs(x = "Cumulative shooting experience (days)", y = "Daily dsitance travelled (km)", colour = "Disturbance Day", fill = "Disturbance Day")+
   scale_colour_manual(values = c("No Shooting" = "#708090", "Shooting" = "#CD5C5C")) +
   scale_fill_manual(values = c("No Shooting" = "#708090", "Shooting" = "#CD5C5C")) +
   facet_grid(~Species) +
@@ -311,7 +311,8 @@ ggsave("Disturbance_Paper_Files/Daily travel distance_3-way - 2level disturbance
 
 ## 5.4 Plot overall Figure 4
 # Combine all the plots together
-Figure_5 <- Fig_4a / Fig_4b
+Figure_5 <- plot_grid(Fig_4a, Fig_4b, nrow = 2)
+
 Figure_5
 
 ggsave("Figure_5.jpeg", Figure_5)
@@ -327,7 +328,7 @@ Top_model_plot_experience <- ggplot(df_dist_top2a, aes(indiv_dist, fit))+
   geom_line(aes(colour = Disturbance), size = 1)+
   geom_ribbon(aes(ymin=lower, ymax=upper, fill = Disturbance), alpha = 0.3) +
   #scale_colour_manual(values = c("#44AA99", "#DDCC77", "#999933", "#117733", "#CC6677", "#882255", "#AA4499")) +
-  labs(x = "Cumulative shooting experience", y = "Daily dsitance travelled (km)", colour = "Disturbance")+
+  labs(x = "Cumulative shooting experience (days)", y = "Daily dsitance travelled (km)", colour = "Disturbance")+
   scale_colour_manual(values = c("No Shooting" = "#708090", "Shooting" = "#CD5C5C")) +
   scale_fill_manual(values = c("No Shooting" = "#708090", "Shooting" = "#CD5C5C")) +
   #  facet_grid(~Species) +
