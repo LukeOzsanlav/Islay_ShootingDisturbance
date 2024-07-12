@@ -27,6 +27,8 @@ distance_data$group_id <- as.numeric(distance_data$Tag_Winter)
 distance_data$Winter <- as.factor(distance_data$Winter)
 head(distance_data)
 
+
+
 #------------------------------------#
 ####  2.Model 2-level disturbance ####
 #------------------------------------#
@@ -111,6 +113,9 @@ dist_globl <- glmmTMB(totaldist ~ Species + Sex +
                       data = distance_data,
                       family = Gamma("log"), na.action = "na.fail")
 
+
+
+
 #------------------------------------#
 ####  3.Model 3-level disturbance ####
 #------------------------------------#
@@ -193,9 +198,11 @@ shoot_globl <- glmmTMB(totaldist ~ Species + Sex +
                        data = distance_data,
                        family = Gamma("log"), na.action = "na.fail")
 
-#------------------------------------#
+
+
+#------------------------#
 ####  4. Model Checks ####
-#------------------------------------#
+#------------------------#
 
 ## 4.1 Calculate and compare models with AICc ----
 ICtab(dist_glob,dist_globb,dist_globc,dist_globd,dist_globe,dist_globf,dist_globg,dist_globh,
@@ -238,6 +245,8 @@ r.squaredGLMM(shoot_globj)
 r.squaredGLMM(shoot_globk)
 r.squaredGLMM(shoot_globl)
 
+
+
 #-------------------------------------#
 ####         5.Model Plots         ####
 #-------------------------------------#
@@ -255,14 +264,15 @@ effects_top2b <- as.data.frame(allEffects(dist_glob)) # All effects
 confint(dist_glob) # Confidence intervals of top model
 
 # Visualise all effects in top model
-plot(allEffects(dist_glob2))
+plot(allEffects(dist_glob))
+
 
 ## 5.2 Plot Figure 4a ----
 # This is plotted for the best overall performing model
 df_dist_top$Disturbance <- recode(df_dist_top$Disturbance2, No_Shoot = "No Shooting", Shoot = "Shooting" )
 
 Fig_4a <- ggplot(df_dist_top, aes(indiv_dist, fit))+
-  geom_line(aes(colour = Disturbance), size = 1)+
+  geom_line(aes(colour = Disturbance), linewidth = 1)+
   geom_ribbon(aes(ymin=lower, ymax=upper, fill = Disturbance), alpha = 0.3) +
   #scale_colour_manual(values = c("#44AA99", "#DDCC77", "#999933", "#117733", "#CC6677", "#882255", "#AA4499")) +
   labs(x = "Cumulative shooting experience (days)", y = "Daily dsitance travelled (km)", colour = "Disturbance Day", fill = "Disturbance Day")+
@@ -274,14 +284,18 @@ Fig_4a <- ggplot(df_dist_top, aes(indiv_dist, fit))+
   theme(plot.title = element_text(size=12)) +
   theme(panel.grid.major = element_blank(),
         axis.line = element_line(colour = "black", size = 0.7),
-        axis.text.x = element_text(size=10), 
-        axis.title=element_text(size=10),
-        text = element_text(size = 10)) +
+        axis.text = element_text(size=10), 
+        axis.title=element_text(size=12),
+        legend.text = element_text(size=10),
+        legend.title = element_text(size=10),
+        text = element_text(size = 10),
+        strip.text = element_text(size = 11)) +
   scale_x_continuous(limits = c(0,35)) +
   scale_y_continuous(limits = c(0,17),  breaks = seq(0,17, by = 2))
 
 Fig_4a
-ggsave("Disturbance_Paper_Files/Daily travel distance_3-way - 2level disturbance - model.jpeg", Top_model_plot)
+# ggsave("Plots/Script 5) plots/Daily travel distance_3-way - 2level disturbance - model.jpeg", Fig_4a)
+
 
 ## 5.3 Plot Figure 4b ----
 # This is the overall top model disturbance interaction
@@ -302,23 +316,26 @@ Fig_4b <- ggplot(df_dist_top2b, aes(Disturbance2, fit)) +
   theme(plot.title = element_text(size=12)) +
   theme(panel.grid.major = element_blank(),
         axis.line = element_line(colour = "black", size = 0.7),
-        axis.text.x = element_text(size=10), 
-        axis.title=element_text(size=10),
+        axis.text = element_text(size=10), 
+        axis.title=element_text(size=12),
         text = element_text(size = 12)) 
 Fig_4b
+## Save this plot on it's own if needed
+# ggsave("Plots/Script 5) plots/Daily travel distance_3-way - 2level disturbance - model.jpeg", Top_model_plot)
 
-ggsave("Disturbance_Paper_Files/Daily travel distance_3-way - 2level disturbance - model.jpeg", Top_model_plot)
 
 ## 5.4 Plot overall Figure 4
 # Combine all the plots together
-Figure_5 <- plot_grid(Fig_4a, Fig_4b, nrow = 2)
+Figure_4 <- plot_grid(Fig_4a, Fig_4b, nrow = 2)
 
-Figure_5
+Figure_4
 
-ggsave("Figure_5.jpeg", Figure_5)
+## svae figure 4
+ggsave(filename = "Plots/Script 5) plots/Figure_4.jpeg", plot = Figure_4, dpi = 320)
 
 
-## 5.5 Plot of individual experience ----
+
+## 5.5 Plot of individual experience effect alone ----
 df_dist_top2a$Disturbance <- recode(df_dist_top2a$Disturbance2, No_Shoot = "No Shooting", Shoot = "Shooting" )
 
 Disturbance_labels <- c("No Shooting", "Shooting")
@@ -336,7 +353,7 @@ Top_model_plot_experience <- ggplot(df_dist_top2a, aes(indiv_dist, fit))+
   ggtitle("b) Two-way model interaction") +
   theme(panel.grid.major = element_blank(),
         axis.line = element_line(colour = "black", size = 0.7),
-        axis.text.x = element_text(size=10), 
+        axis.text = element_text(size=10), 
         axis.title=element_text(size=10),
         text = element_text(size = 10)) +
   theme(legend.position = "none") +

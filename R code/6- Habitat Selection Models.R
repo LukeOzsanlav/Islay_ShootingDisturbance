@@ -10,7 +10,7 @@
 ## and/or select sites further from shooting and other forms of anthropogenic disturbance (i.e. further from roads)
 ##---------------------------------------------------------##
 
- ## Packages required
+## Packages required
 pacman::p_load(tidyr,plyr,dplyr,zoo,data.table,move,ggplot2,patchwork, purrr,readr,sfheaders,
                lubridate,tidyverse,readr,amt,raster, geosphere,sf,DHARMa,lme4,pROC,
                MuMIn,effects,lattice,performance,MASS,glmmTMB,bbmle,emmeans, MetBrewer)
@@ -38,6 +38,8 @@ gwf_dd_dat$Disturbance_Day <- as.factor(gwf_dd_dat$Disturbance_Day)
 ## 1.2 Within disturbance days data ----
 gbg_PP <- read.csv("Derived Data/GBG_1200m_Within_Model_Data.csv")
 gwf_PP <- read.csv("Derived Data/GWFG_644m_Within_Model_Data.csv")
+
+
 
 #-------------------------------------------#
 ####  2. Between disturbance GBG models  ####
@@ -80,6 +82,8 @@ confusionMatrix(p2, gbg_dd_dat$Case.factor, positive = "1")
 gbgSHOOT.HISTa <- as.data.frame(effect("ceh_broad:Disturbance_Day",gbg_dd_rsfc1)) 
 head(gbgSHOOT.HISTa)
 
+
+
 #--------------------------------------------#
 ####  3. Between disturbance GWfG models  ####
 #--------------------------------------------#
@@ -118,6 +122,8 @@ confusionMatrix(p2, gwf_dd_dat$Case.factor, positive = "1")
 # Create a data frame of model variables for the interaction terms in the model 
 gwfSHOOT.HISTa <- as.data.frame(effect("ceh_broad:Disturbance_Day",gwf_dd_rsfc1)) #100 to get nice line
 
+
+
 #--------------------------------------------#
 ####          4. Create Figure 5          ####
 #--------------------------------------------#
@@ -141,7 +147,7 @@ goose_2way$ceh_broad <- dplyr::recode(goose_2way$ceh_broad, arable_hort = "Other
 # Re-code Shooting fix
 goose_2way$Disturbance_Day <- recode(goose_2way$Disturbance_Day, "1" = "Shooting", "0" = "No Shooting" )
 
-goose_3way$PP_Shoot_f <- factor(goose_3way$PP_Shoot, levels = c("Pre-shooting", "Post-shooting"))
+# goose_3way$PP_Shoot_f <- factor(goose_3way$PP_Shoot, levels = c("Pre-shooting", "Post-shooting"))
 
 pd <- position_dodge(0.5) # Dodge point position to avoid complete overlap in the figure
 
@@ -165,6 +171,7 @@ Fig_5a <- ggplot(goose_2way, aes(ceh_broad, fit))+
 Fig_5a
 
 # ggsave("Goose_Total_Habitat_Selection_1200m.jpeg",Fig_5a) # Save plot
+
 
 ## 4.3 Prep data to create Figure 5b ----
 
@@ -245,11 +252,15 @@ Fig_5b <- ggplot(alldf_all, aes(x = Used, y = percentage_fixes)) +
         strip.text.x = element_text(size = 15))
 Fig_5b
 
-# ggsave("Goose_Proportion_Fixes_797.jpeg",Fig_5b) # Save figure 5b
+
 
 # 4.5 Combine plots to create completed Figure 5 ----
-Figure_5 <- goose_hab / prop_all
-# ggsave("Goose_Selection_Proportion_797.jpeg",Figure_5) # Save Figure 5
+Figure_5 <- Fig_5a / Fig_5b
+Figure_5
+ggsave(filename = "Plots/Script 6) plots/Figure_5.png", plot = Figure_5, dpi = 320, units = "in", height = 10.7, width = 8.59) # Save Figure 5
+
+
+
 
 #-----------------------------------------------#
 ####  5. Within disturbance days GBG models  ####
@@ -447,7 +458,6 @@ Fig_6a <- ggplot(goose_3way, aes(Road_Distance, fit))+
 
 Fig_6a
 
-# ggsave("PP_GOOSE_HABITAT_DISTANCE_797.jpg", Fig_6a) # Save plot for Figure 6a 
 
 ## 6.5 Prep data to create figure 6b ----
 
@@ -457,7 +467,7 @@ gbg_PP <- rename(gbg_PP, "dist_points" = "gbg_dist_points")
 gbg_PP$Species <- "GBG"
 gwf_PP$Species <- "GWfG"
 gwf_PP <- rename(gwf_PP, "dist_points" = "gwf_dist_points")
-goose_PP <- rbind(gbg_PP4, gwf_PP)
+goose_PP <- rbind(gbg_PP, gwf_PP)
 goose_PP$sum <- 1
 
 # Create a data frame of fixes in each habitat type by species by shooting day
@@ -521,10 +531,9 @@ Fig_6b <- ggplot(PPdf_all, aes(x = Used, y = percentage_fixes)) +
         strip.text.x = element_text(size = 15))
 Fig_6b
 
-# ggsave("PP_Goose_Proportion_Fixes_797.jpeg",Fig_6b) # Save Figure 6b
 
 # 6.7 Combine plots to create Figure 6 ----
 PP_Overall_habitat <- Fig_6a / Fig_6b
-#ggsave("PP_Goose_Selection_Proportion_Diff_Dist_Combined2.jpeg",PP_Overall_habitat)
+ggsave("Plots/Script 6) plots/Figure_6.png", plot = PP_Overall_habitat, dpi = 320, units = "in", height = 10.7, width = 8.59)
 
 #### END ####
