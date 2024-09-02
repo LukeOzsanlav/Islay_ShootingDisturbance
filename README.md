@@ -1,6 +1,7 @@
 # Contrasting effects of shooting disturbance on the movement and behaviour of sympatric wildfowl species 🔫 🦆
 The impact of shooting on time-activity budgets, movement and habitat selection in Barnacle Geese *Branta leucopsis* and White-fronted Geese *Anser albifrons flavirostris* on Islay, Scotland. 
 
+A copy of the repository at time of publication can be found on zenodo below. 
 [![DOI](https://zenodo.org/badge/524048974.svg)](https://zenodo.org/doi/10.5281/zenodo.13383185)
 
 ## Authors 🖊️
